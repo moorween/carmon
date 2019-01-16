@@ -1,0 +1,6 @@
+{
+    "terminal.integrated.env.osx": {
+        "PATH": "/Users/moorween/.platformio/penv/bin:/Users/moorween/.platformio/penv:/Users/moorween/.composer/vendor/bin:/Library/Frameworks/Python.framework/Versions/3.7/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/php5-7.0.12-20161101-102255/bin:/Applications/Postgres.app/Contents/Versions/latest/bin:/Users/moorween/Library/Android/sdk/tools:/Users/moorween/Library/Android/sdk/platform-tools",
+        "PLATFORMIO_CALLER": "vscode"
+    }
+}
