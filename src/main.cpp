@@ -26,6 +26,7 @@ struct sensor
   double maxValue;
   boolean large;
   int resistanceRef;
+  int averageInterval;
 };
 
 sensor sensors[] = {
