@@ -15,6 +15,7 @@
 U8G2_SSD1322_NHD_256X64_F_4W_HW_SPI u8g(U8G2_R2, OLED_CS, OLED_DC, OLED_RESET);
 OneWire ds(40);
 
+int contrast = 0;
 int temperature = 0; // Глобальная переменная для хранения значение температуры с датчика DS18B20
 
 long lastUpdateTime = 0; // Переменная для хранения времени последнего считывания с датчика
@@ -37,10 +38,10 @@ struct sensor
 };
 
 sensor sensors[] = {
-  {A15, 2, 2, "IAT", "IAT", 20.3, 0, 0, 0, false, 10000},
+  {A15, 2, 2, "IAT", "IAT", 20.3, 0, 0, 0, false, 1000},
   {A11, 5, 1, "EGT", "EGT", 343, 0, 0, 0, false, 0},
   {A13, 1, 1, "BOOST", "Boost", 0.32, 2, 0, 0, true, 0},
-  {A9, 3, 3, "FPRESS", "Fuel Press", 4.1, 1, 0, 0, false, 0},
+  {A13, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 0, 0, false, 0},
   // {A6, 3, 3, "ATPRESS", "AT Press", 4.1, 1, 0, 0, false, 0},
   // {A6, 3, 3, "ATTEMP", "AT Temp", 42.3, 0, 0, 0, false, 0},
   {40, 4, 3, "CTEMP", "C Temp", 4.1, 0, 0, 0, false, 0},
@@ -69,34 +70,39 @@ int detectTemperature() {
 
 void setup()
 {
-  analogReference(INTERNAL1V1);
+  // analogReference(INTERNAL1V1);
   Serial.begin(9600);
   Serial2.begin(9600);
 
   u8g.begin();
   u8g.setFont(u8g2_font_5x8_mf);
   u8g.setFontPosTop();
-  u8g.setColorIndex(1);
+  u8g.setContrast(0);
+
+  // u8g.setColorIndex(1);
 }
 
 void loop()
 {
+  
   int displayX = 0;
   int displayY = 0;
   u8g.clearBuffer();
-
+  
   for(signed int i = 0; i < sizeof(sensors)/sizeof(sensor); i++) {
       int yPlus = 32;
       float val = analogRead(sensors[i].port);
+      val = analogRead(sensors[i].port);
 
       switch (sensors[i].type) {
         case 1: //GM Map
         // sensors[i].value = val;
           sensors[i].value = mapVal(voltVal(val)) / 1000;
+          Serial.println(sensors[i].value);
           break;
         case 2: // IAT
           sensors[i].value = getIat(resVal(voltVal(val), sensors[i].resistanceRef));
-          // sensors[i].value = getIat(2300);
+          // sensors[i].value = resVal(voltVal(val), sensors[i].resistanceRef);
           // sensors[i].value = voltVal(val);
           break;
         case 3:
@@ -106,10 +112,10 @@ void loop()
           sensors[i].value = temperature;
           break;
         case 5:
-          sensors[i].value = getEGT(voltVal(val) / 1000);
+          sensors[i].value = voltVal(val) ;//getEGT(voltVal(val) / 1000);
           break;
       }
-      
+      // sensors[i].value = val;
       // sensors[i].value = u8g.getDisplayWidth();
 
       char tmp_string[128];
@@ -117,7 +123,7 @@ void loop()
       // dtostrf(sensors[i].value, 2, 4, tmp_string);  
       if (sensors[i].value < 0) {
         if (tmp_string[1] == '0') {
-          tmp_string[1] = "";
+          tmp_string[1] = "a";
         }
       }
 
@@ -147,6 +153,11 @@ void loop()
         displayX += 94;
       } else {
         displayY += yPlus;
+      }
+      delay(10);
+      if (contrast < 255) {
+        contrast += 15;
+        u8g.setContrast(contrast);
       }
   }
   u8g.drawLine(65, 5, 65, 59);

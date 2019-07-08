@@ -1,7 +1,8 @@
 #include "../../EEPROM/src/EEPROM.h"
-const float voltRef = 1.1;
+const float voltRef = 5.0;
 
-float iatCal[18][2] = {
+float iatCal[19][2] = {
+    140, 75.3,
     130, 89.3,
     120, 112.7,
     110, 144.2,
@@ -185,11 +186,19 @@ float mapVal(float value)
   float p = (Pmax - Pmin) * (value - Umin) / (Umax - Umin) + Umin;
   if (pRef == 0)
   {
-    pRef = EEPROM.read(0) || p;
-    EEPROM.write(0, p);
+    EEPROM.get(0, pRef);
+    if (pRef == 0) {
+      pRef = p;
+    }
+    EEPROM.put(0, p);
+    Serial.print("Map Correction: ");
+    Serial.println(pRef);
+    Serial.print("EEPROM write: ");
+    Serial.println(p);
   }
+
   if (millis() > 10000) {
-    EEPROM.write(0, 0);
+    EEPROM.put(0, 0);
   }
 
   return p - pRef;
@@ -222,7 +231,7 @@ float getIat(float ohm)
     prevIatIdx = 0;
     return getIat(ohm);
   } else {
-    return 0;
+    return 999;
   }
 }
 
@@ -243,6 +252,6 @@ float getEGT(float val)
     prevIdx = 0;
     return getEGT(val);
   } else {
-    return 0;
+    return 999;
   }
 }
