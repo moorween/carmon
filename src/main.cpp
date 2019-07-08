@@ -1,17 +1,24 @@
 #include <SPI.h>
 #include <Wire.h>
-#include "TinyGPS++.h"
+// #include "TinyGPS++.h"
 #include <Arduino.h>
 #include "../lib/utils.cpp"
 // #include "U8glib.h"
 #include <U8g2lib.h>
 #include <stdlib.h>
-
+#include <OneWire.h>
 #define OLED_CS 45    // Pin 10, CS - Chip select
 #define OLED_DC 48    // Pin 9 - DC digital signal
 #define OLED_RESET 49 // using hardware !RESET from Arduino instead
 
 U8G2_SSD1322_NHD_256X64_F_4W_HW_SPI u8g(U8G2_R2, OLED_CS, OLED_DC, OLED_RESET);
+
+OneWire ds(40);
+
+int temperature = 0; // Глобальная переменная для хранения значение температуры с датчика DS18B20
+
+long lastUpdateTime = 0; // Переменная для хранения времени последнего считывания с датчика
+const int TEMP_UPDATE_TIME = 1000; // Определяем пе
 
 struct sensor
 {
@@ -30,12 +37,35 @@ struct sensor
 };
 
 sensor sensors[] = {
-  {A4, 2, 2, "IAT", "IAT", 20.3, 0, 0, 0, false, 10000},
-  {A5, 3, 3, "FPRESS", "Fuel Press", 4.1, 2, 0, 0, false, 0},
-  {A3, 1, 1, "BOOST", "Boost", 0.32, 2, 0, 0, true, 0},
+  {A15, 2, 2, "IAT", "IAT", 20.3, 0, 0, 0, false, 10000},
+  {A11, 1, 1, "EGT", "EGT", 343, 0, 0, 0, false, 0},
+  // {A5, 3, 3, "FPRESS", "Fuel Press", 4.1, 2, 0, 0, false, 0},
+  {A13, 1, 1, "BOOST", "Boost", 0.32, 2, 0, 0, true, 0},
   {A6, 3, 3, "ATPRESS", "AT Press", 4.1, 1, 0, 0, false, 0},
-  {A6, 3, 3, "ATTEMP", "AT Temp", 42.3, 0, 0, 0, false, 0}
+  // {A6, 3, 3, "ATTEMP", "AT Temp", 42.3, 0, 0, 0, false, 0},
+  {40, 4, 3, "CTEMP", "C Temp", 4.1, 0, 0, 0, false, 0},
 };
+
+int detectTemperature() {
+
+  byte data[2];
+  ds.reset();
+  ds.write(0xCC);
+  ds.write(0x44);
+
+  if (millis() - lastUpdateTime > TEMP_UPDATE_TIME)
+  {
+    lastUpdateTime = millis();
+    ds.reset();
+    ds.write(0xCC);
+    ds.write(0xBE);
+    data[0] = ds.read();
+    data[1] = ds.read();
+
+    // Формируем значение
+    temperature = (data[1] << 8) + data[0]; temperature = temperature >> 4;
+  }
+}
 
 void setup()
 {
@@ -66,6 +96,9 @@ void loop()
           sensors[i].value = getIat(resVal(voltVal(val), sensors[i].resistanceRef));
           break;
         case 3:
+          break;
+        case 4:
+          sensors[i].value = temperature;
           break;
       }
       
@@ -111,4 +144,6 @@ void loop()
   u8g.drawLine(65, 5, 65, 59);
   u8g.drawLine(191, 5, 191, 59);
   u8g.sendBuffer();
+  delay(100);
+  detectTemperature();
 }

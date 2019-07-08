@@ -2,5 +2,9 @@
     "terminal.integrated.env.osx": {
         "PATH": "/Users/moorween/.platformio/penv/bin:/Users/moorween/.platformio/penv:/Users/moorween/.composer/vendor/bin:/Library/Frameworks/Python.framework/Versions/3.7/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/php5-7.0.12-20161101-102255/bin:/Applications/Postgres.app/Contents/Versions/latest/bin:/Users/moorween/Library/Android/sdk/tools:/Users/moorween/Library/Android/sdk/platform-tools:/usr/local/opt/mysql-client/bin",
         "PLATFORMIO_CALLER": "vscode"
+    },
+    "terminal.integrated.env.linux": {
+        "PATH": "/home/moorween/.platformio/penv/bin:/home/moorween/.platformio/penv:/home/moorween/.nvm/versions/node/v11.7.0/bin:/usr/local/sbin:/usr/local/bin:/usr/bin:/usr/lib/jvm/default/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl:/usr/lib/jvm/default/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl",
+        "PLATFORMIO_CALLER": "vscode"
     }
 }
