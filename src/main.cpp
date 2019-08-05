@@ -41,7 +41,7 @@ sensor sensors[] = {
   {A15, 2, 2, "IAT", "IAT", 20.3, 0, 0, 0, false, 1000},
   {A11, 5, 1, "EGT", "EGT", 343, 0, 0, 0, false, 0},
   {A13, 1, 1, "BOOST", "Boost", 0.32, 2, 0, 0, true, 0},
-  {A13, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 0, 0, false, 0},
+  {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 0, 0, false, 0},
   // {A6, 3, 3, "ATPRESS", "AT Press", 4.1, 1, 0, 0, false, 0},
   // {A6, 3, 3, "ATTEMP", "AT Temp", 42.3, 0, 0, 0, false, 0},
   {40, 4, 3, "CTEMP", "C Temp", 4.1, 0, 0, 0, false, 0},
