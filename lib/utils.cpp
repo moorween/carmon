@@ -173,7 +173,7 @@ int prevIdx;
 float pRef = 0;
 
 float pressVal(float value) {
-  return ((value / voltRef) - 0.1) * 10;
+  return (((value / voltRef) - 0.1) / 0.8) * 10;
 }
 
 float mapVal(float value)

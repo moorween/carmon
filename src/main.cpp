@@ -35,6 +35,7 @@ struct sensor
   boolean large;
   int resistanceRef;
   int averageInterval;
+  double rawValue;
 };
 
 sensor sensors[] = {
@@ -72,7 +73,8 @@ void setup()
 {
   // analogReference(INTERNAL1V1);
   Serial.begin(9600);
-  Serial2.begin(9600);
+  Serial3.begin(9600);
+  Serial3.println("AT+NAMECarMon");
 
   u8g.begin();
   u8g.setFont(u8g2_font_5x8_mf);
@@ -92,27 +94,32 @@ void loop()
   for(signed int i = 0; i < sizeof(sensors)/sizeof(sensor); i++) {
       int yPlus = 32;
       float val = analogRead(sensors[i].port);
-      val = analogRead(sensors[i].port);
+      float volt = voltVal(val);
 
       switch (sensors[i].type) {
         case 1: //GM Map
         // sensors[i].value = val;
-          sensors[i].value = mapVal(voltVal(val)) / 1000;
-          Serial.println(sensors[i].value);
+          sensors[i].value = mapVal(volt) / 1000;
+          sensors[i].rawValue = volt;
           break;
         case 2: // IAT
-          sensors[i].value = getIat(resVal(voltVal(val), sensors[i].resistanceRef));
+          float res = resVal(volt, sensors[i].resistanceRef);
+          sensors[i].value = getIat(res);
+          sensors[i].rawValue = res;
           // sensors[i].value = resVal(voltVal(val), sensors[i].resistanceRef);
           // sensors[i].value = voltVal(val);
           break;
         case 3:
-          sensors[i].value = pressVal(voltVal(val));
+          sensors[i].value = pressVal(volt);
+          sensors[i].rawValue = volt;
           break;
         case 4:
           sensors[i].value = temperature;
+          sensors[i].rawValue = temperature;
           break;
         case 5:
-          sensors[i].value = voltVal(val) ;//getEGT(voltVal(val) / 1000);
+          sensors[i].value = volt / 1000;//getEGT(voltVal(val) / 1000);
+          sensors[i].rawValue = volt;
           break;
       }
       // sensors[i].value = val;
@@ -147,6 +154,13 @@ void loop()
           u8g.drawStr(displayX, displayY + 8, tmp_string);
         }
       }
+
+      Serial3.print(sensors[i].serialMark);
+      Serial3.print("/");
+      Serial3.print(sensors[i].rawValue);
+      Serial3.print("/");
+      Serial3.print(sensors[i].value);
+      Serial3.println("END");
 
       if ((displayY + yPlus) >= 64) {
         displayY = 0;
