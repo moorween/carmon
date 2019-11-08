@@ -18,13 +18,19 @@ OneWire ds(40);
 int contrast = 0;
 int temperature = 0; // Глобальная переменная для хранения значение температуры с датчика DS18B20
 
-long lastUpdateTime = 0; // Переменная для хранения времени последнего считывания с датчика
+long lastUpdateTime = 0, lastUpdTime = 0; // Переменная для хранения времени последнего считывания с датчика
 const int TEMP_UPDATE_TIME = 1000; // Определяем пе
+
+int injDuty = 0, injCounter = 0, spdCounter = 0;
+bool injLastState = false;
+long injLastUpdate = 0;
+int injPerMin = 0, spdPerMin = 0;
+
 
 struct sensor
 {
   int port;
-  int type; // 1 = GM- Map, 2 = GM IAT sensor, 3 = pressure sensor, 4 = DS18b20, 5 = EGT
+  int type; // 1 = GM- Map, 2 = GM IAT sensor, 3 = pressure sensor, 4 = DS18b20, 5 = EGT, 6 = Speed, 7 = Injector
   int displayPosition;
   char serialMark[14];
   char title[14];
@@ -39,15 +45,18 @@ struct sensor
 };
 
 sensor sensors[] = {
-  {A15, 2, 2, "IAT", "IAT", 20.3, 0, 0, 0, false, 1000},
-  {A11, 5, 1, "EGT", "EGT", 343, 0, 0, 0, false, 0},
-  {A13, 1, 1, "BOOST", "Boost", 0.32, 2, 0, 0, true, 0},
-  {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 0, 0, false, 0},
+  {0, 7, 1, "INJ", "Inj", 10, 0, 0, 0, false, 0, 1000, 0},
+  {1, 6, 2, "SPD", "Spd", 10, 0, 0, 0, false, 0, 1000, 0},
+  // {A15, 2, 2, "IAT", "IAT", 20.3, 0, 0, 0, false, 1000, 0, 0},
+  // {A11, 5, 1, "EGT", "EGT", 343, 0, 0, 0, false, 0, 0, 0},
+  {A13, 1, 1, "BOOST", "Boost", 0.32, 2, 0, 0, true, 0, 0, 0},
+  {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 0, 0, false, 0, 0, 0},
   // {A6, 3, 3, "ATPRESS", "AT Press", 4.1, 1, 0, 0, false, 0},
   // {A6, 3, 3, "ATTEMP", "AT Temp", 42.3, 0, 0, 0, false, 0},
-  {40, 4, 3, "CTEMP", "C Temp", 4.1, 0, 0, 0, false, 0},
+  {40, 4, 3, "CTEMP", "C Temp", 1, 0, 0, 0, false, 0, 0, 0},
 };
-
+// форсунка 6
+// датчик скорости  7
 int detectTemperature() {
   byte data[2];
   ds.reset();
@@ -69,13 +78,45 @@ int detectTemperature() {
   return temperature;
 }
 
+void once(int timeout) {
+
+}
+
+void injStateChange() {
+  injCounter ++;
+  Serial.println("INJ ++");
+  bool state = digitalRead(2);
+  if (state) {
+    
+  }
+
+}
+
+void spdRise() {
+  spdCounter ++;
+  Serial.println("SPD ++");
+}
+
 void setup()
 {
-  // analogReference(INTERNAL1V1);
   Serial.begin(9600);
   Serial3.begin(9600);
   Serial3.println("AT+NAMECarMon");
 
+  for(signed int i = 0; i < sizeof(sensors)/sizeof(sensor); i++) {
+    switch (sensors[i].type) {
+        case 6:
+        Serial.println("Attach INJ");
+          attachInterrupt(sensors[i].port, injStateChange, CHANGE);
+          break;
+        case 7:
+        Serial.println("Attach SPD");
+          attachInterrupt(sensors[i].port, spdRise, RISING);
+          break;
+    }
+  }
+  // analogReference(INTERNAL1V1);
+  
   u8g.begin();
   u8g.setFont(u8g2_font_5x8_mf);
   u8g.setFontPosTop();
@@ -91,12 +132,42 @@ void loop()
   int displayY = 0;
   u8g.clearBuffer();
   
+  if (millis() - lastUpdTime > 1000)
+  {
+    lastUpdTime = millis();
+
+    injPerMin = injCounter * 60;
+    spdPerMin = spdCounter * 60;
+    injCounter = 0;
+    spdCounter = 0;
+  }
+
   for(signed int i = 0; i < sizeof(sensors)/sizeof(sensor); i++) {
       int yPlus = 32;
       float val = analogRead(sensors[i].port);
-      float volt = voltVal(val);
+      double volt = voltVal(val);
 
       switch (sensors[i].type) {
+        case 6:
+          sensors[i].value = injPerMin;
+          sensors[i].rawValue = injPerMin;
+          break;
+        case 7:
+          sensors[i].value = spdPerMin;
+          sensors[i].rawValue = spdPerMin;
+          break;
+        case 3:
+          sensors[i].value = pressVal(volt);
+          sensors[i].rawValue = volt;
+          break;
+        case 4:
+          sensors[i].value = temperature;
+          sensors[i].rawValue = temperature;
+          break;
+        case 5:
+          sensors[i].value = getEGT(voltVal(val) * 1000);
+          sensors[i].rawValue = volt;
+          break;
         case 1: //GM Map
         // sensors[i].value = val;
           sensors[i].value = mapVal(volt) / 1000;
@@ -108,18 +179,6 @@ void loop()
           sensors[i].rawValue = res;
           // sensors[i].value = resVal(voltVal(val), sensors[i].resistanceRef);
           // sensors[i].value = voltVal(val);
-          break;
-        case 3:
-          sensors[i].value = pressVal(volt);
-          sensors[i].rawValue = volt;
-          break;
-        case 4:
-          sensors[i].value = temperature;
-          sensors[i].rawValue = temperature;
-          break;
-        case 5:
-          sensors[i].value = volt / 1000;//getEGT(voltVal(val) / 1000);
-          sensors[i].rawValue = volt;
           break;
       }
       // sensors[i].value = val;
@@ -168,7 +227,6 @@ void loop()
       } else {
         displayY += yPlus;
       }
-      delay(10);
       if (contrast < 255) {
         contrast += 15;
         u8g.setContrast(contrast);
