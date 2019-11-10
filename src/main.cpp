@@ -78,8 +78,19 @@ int detectTemperature() {
   return temperature;
 }
 
-void once(int timeout) {
+struct delays
+{
+  int index;
+  int delay = 0;
+};
+int timings[];
 
+void once(delays timeout, void (*callback)(void)) {
+  if (millis() - timings[timeout.index] >= timeout.delay)
+  {
+    timings[timeout.index] = millis();
+    callback();
+  }
 }
 
 void injStateChange() {
@@ -128,6 +139,8 @@ void setup()
 void loop()
 {
   
+  once((delays) {1, 1000}, injStateChange);
+
   int displayX = 0;
   int displayY = 0;
   u8g.clearBuffer();
@@ -169,7 +182,6 @@ void loop()
           sensors[i].rawValue = volt;
           break;
         case 1: //GM Map
-        // sensors[i].value = val;
           sensors[i].value = mapVal(volt) / 1000;
           sensors[i].rawValue = volt;
           break;
@@ -177,16 +189,12 @@ void loop()
           float res = resVal(volt, sensors[i].resistanceRef);
           sensors[i].value = getIat(res);
           sensors[i].rawValue = res;
-          // sensors[i].value = resVal(voltVal(val), sensors[i].resistanceRef);
-          // sensors[i].value = voltVal(val);
+      
           break;
       }
-      // sensors[i].value = val;
-      // sensors[i].value = u8g.getDisplayWidth();
 
       char tmp_string[128];
       dtostrf(sensors[i].value, 2, sensors[i].decimals, tmp_string);  
-      // dtostrf(sensors[i].value, 2, 4, tmp_string);  
       if (sensors[i].value < 0) {
         if (tmp_string[1] == '0') {
           tmp_string[1] = "a";
