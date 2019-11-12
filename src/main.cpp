@@ -20,9 +20,9 @@ int contrast = 0, displayWidth = 0;
 int temperature = 0; // Глобальная переменная для хранения значение температуры с датчика DS18B20
 
 long injDuty = 0, injCounter = 0, spdCounter = 0;
-bool injLastState = false;
-long injLastUpdate = 0;
+long injStartTime = 0;
 long injPerMin = 0, spdPerMin = 0;
+bool injLastState = false;
 
 struct sensor
 {
@@ -39,18 +39,20 @@ struct sensor
   int resistanceRef;
   int averageSize; // 10 is MAX
   double rawValue;
+  double altValue;
 };
 
 sensor sensors[] = {
-  {0, 7, 1, "INJ", "Inj", 10, 0, 0, 0, false, 0, 5, 0},
-  {1, 6, 2, "SPD", "Spd", 10, 0, 0, 0, false, 0, 5, 0},
-  // {A15, 2, 2, "IAT", "IAT", 20.3, 0, 0, 0, false, 1000, 0, 0},
-  // {A11, 5, 1, "EGT", "EGT", 343, 0, 0, 0, false, 0, 0, 0},
-  {A13, 1, 1, "BOOST", "Boost", 0.32, 2, 0, 0, true, 0, 10, 0},
-  {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 0, 0, false, 0, 5, 0},
-  // {A6, 3, 3, "ATPRESS", "AT Press", 4.1, 1, 0, 0, false, 0},
-  // {A6, 3, 3, "ATTEMP", "AT Temp", 42.3, 0, 0, 0, false, 0},
-  {40, 4, 3, "CTEMP", "C Temp", 1, 0, 0, 0, false, 0, 0, 0},
+  {0, 7, 1, "INJ", "Inj", 10, 0, 0, 0, false, 0, 5, 0, 0},
+  {1, 6, 2, "SPD", "Spd", 10, 0, 0, 0, false, 0, 5, 0, 0},
+  // {A15, 2, 2, "IAT", "IAT", 20.3, 0, 0, 0, false, 1000, 0, 0, 0},
+  // {A11, 5, 1, "EGT", "EGT", 343, 0, 0, 0, false, 0, 0, 0, 0},
+  {A13, 1, 1, "BOOST", "Boost", 0.32, 2, 0, 0, true, 0, 10, 0, 0},
+  {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 0, 0, false, 0, 5, 0, 0},
+  // {A6, 3, 3, "ATPRESS", "AT Press", 4.1, 1, 0, 0, false, 0, 0},
+  // {A6, 3, 3, "ATTEMP", "AT Temp", 42.3, 0, 0, 0, false, 0, 0},
+  // {40, 4, 3, "CTEMP", "C Temp", 1, 0, 0, 0, false, 0, 0, 0, 0},
+  {0, 8, 3, "DTY", "Duty", 1, 0, 0, 0, false, 0, 0, 0, 0},
 };
 
 const int SENSORS_SIZE = sizeof(sensors)/sizeof(sensor);
@@ -86,15 +88,19 @@ void once(int delay, void (*callback)(void)) {
 
 void injStateChange() {
   bool state = digitalRead(2);
+
   if (state) {
     injCounter ++;
-    Serial.println("INJ ++");
+    if (injStartTime) {
+      injDuty = millis() - injStartTime;
+    }
+  } else {
+    injStartTime = millis();
   }
 }
 
 void spdRise() {
   spdCounter ++;
-  Serial.println("SPD ++");
 }
 
 void setup()
@@ -165,10 +171,15 @@ void loop()
           case 6:
             sensors[i].value = injPerMin;
             sensors[i].rawValue = injPerMin;
+            sensors[i].altValue = injDuty;
             break;
           case 7:
             sensors[i].value = spdPerMin;
             sensors[i].rawValue = spdPerMin;
+            break;
+          case 8:
+            sensors[i].value = injDuty;
+            sensors[i].rawValue = injDuty;
             break;
           case 3:
             sensors[i].value = pressVal(volt);
@@ -209,54 +220,53 @@ void loop()
 
     // u8g.clearBuffer();
     u8g.firstPage();
-  do {
-     for(unsigned int i = 0; i < sizeof(sensors)/sizeof(sensor); i++) {
-        int yPlus = 32;
+    do {
+      for(unsigned int i = 0; i < sizeof(sensors)/sizeof(sensor); i++) {
+          int yPlus = 32;
 
-        char tmp_string[128];
-        dtostrf(sensors[i].value, 2, sensors[i].decimals, tmp_string);  
-        if (sensors[i].value < 0) {
-          if (tmp_string[1] == '0') {
-            tmp_string[1] = "a";
+          char tmp_string[256];
+          dtostrf(sensors[i].value, 2, sensors[i].decimals, tmp_string);  
+          if (sensors[i].value < 0) {
+            if (tmp_string[1] == '0') {
+              tmp_string[1] = "a";
+            }
           }
-        }
 
-        if (sensors[i].large) {
-          u8g.setFont(u8g2_font_celibatemonk_tr);
-          u8g.drawStr(displayX + 10, displayY, sensors[i].title);
-          u8g.setFont(u8g2_font_osr35_tn); //u8g2_font_fub20_tn
-          u8g.drawStr(displayX - 15, displayY + 20, tmp_string);
-          yPlus = 64;
-        } else {
-          if (displayX > 180) {
-            u8g.setFont(u8g2_font_5x8_mf);
-            u8g.drawStr(displayWidth - u8g.getStrWidth(sensors[i].title), displayY, sensors[i].title);
-            u8g.setFont(u8g2_font_helvR18_tn); //u8g2_font_fub20_tn
-            u8g.drawStr(displayWidth - u8g.getStrWidth(tmp_string), displayY + 8, tmp_string);
+          if (sensors[i].large) {
+            u8g.setFont(u8g2_font_celibatemonk_tr);
+            u8g.drawStr(displayX + 10, displayY, sensors[i].title);
+            u8g.setFont(u8g2_font_osr35_tn); //u8g2_font_fub20_tn
+            u8g.drawStr(displayX - 15, displayY + 20, tmp_string);
+            yPlus = 64;
           } else {
-            u8g.setFont(u8g2_font_5x8_mf);
-            u8g.drawStr(displayX, displayY, sensors[i].title);
-            u8g.setFont(u8g2_font_helvR18_tn); //u8g2_font_fub20_tn
-            u8g.drawStr(displayX, displayY + 8, tmp_string);
+            if (displayX > 180) {
+              u8g.setFont(u8g2_font_5x8_mf);
+              u8g.drawStr(displayWidth - u8g.getStrWidth(sensors[i].title), displayY, sensors[i].title);
+              u8g.setFont(u8g2_font_helvR18_tn); //u8g2_font_fub20_tn
+              u8g.drawStr(displayWidth - u8g.getStrWidth(tmp_string), displayY + 8, tmp_string);
+            } else {
+              u8g.setFont(u8g2_font_5x8_mf);
+              u8g.drawStr(displayX, displayY, sensors[i].title);
+              u8g.setFont(u8g2_font_helvR18_tn); //u8g2_font_fub20_tn
+              u8g.drawStr(displayX, displayY + 8, tmp_string);
+            }
           }
-        }
-        
-        if ((displayY + yPlus) >= 64) {
-          displayY = 0;
-          displayX += 94;
-        } else {
-          displayY += yPlus;
-        }
-        
-        if (contrast < 255) {
-          contrast += 15;
-          u8g.setContrast(contrast);
-        }
-    }
-    u8g.drawLine(65, 5, 65, 59);
-    u8g.drawLine(191, 5, 191, 59);
-  } while ( u8g.nextPage() );
-
+          
+          if ((displayY + yPlus) >= 64) {
+            displayY = 0;
+            displayX += 94;
+          } else {
+            displayY += yPlus;
+          }
+          
+          if (contrast < 255) {
+            contrast += 15;
+            u8g.setContrast(contrast);
+          }
+      }
+      u8g.drawLine(65, 5, 65, 59);
+      u8g.drawLine(191, 5, 191, 59);
+    } while ( u8g.nextPage() );
    
     // u8g.drawLine(65, 5, 65, 59);
     // u8g.drawLine(191, 5, 191, 59);
