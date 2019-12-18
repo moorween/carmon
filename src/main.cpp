@@ -86,17 +86,15 @@ void once(int delay, void (*callback)(void)) {
   }
 }
 
-void injStateChange() {
-  bool state = digitalRead(2);
+void injStateRise() {
+  injStartTime = millis();
+}
 
-  if (state) {
+void injStateFall() {
     injCounter ++;
     if (injStartTime) {
       injDuty = millis() - injStartTime;
     }
-  } else {
-    injStartTime = millis();
-  }
 }
 
 void spdRise() {
@@ -113,7 +111,8 @@ void setup()
     switch (sensors[i].type) {
         case 6:
           Serial.println("Attach INJ");
-          attachInterrupt(sensors[i].port, injStateChange, CHANGE);
+          attachInterrupt(sensors[i].port, injStateRise, RISING);
+          attachInterrupt(sensors[i].port, injStateFall, FALLING);
           break;
         case 7:
           Serial.println("Attach SPD");
