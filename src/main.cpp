@@ -94,10 +94,10 @@ void injStateChange() {
   if (state) {
     injCounter ++;
     if (injStartTime) {
-      injDuty = millis() - injStartTime;
+      injDuty = micros() - injStartTime;
     }
   } else {
-    injStartTime = millis();
+    injStartTime = micros();
   }
 }
 
