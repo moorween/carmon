@@ -6,5 +6,8 @@
     "terminal.integrated.env.linux": {
         "PATH": "/home/moorween/.platformio/penv/bin:/home/moorween/.platformio/penv:/home/moorween/.nvm/versions/node/v11.7.0/bin:/usr/local/sbin:/usr/local/bin:/usr/bin:/usr/lib/jvm/default/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl:/usr/lib/jvm/default/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl",
         "PLATFORMIO_CALLER": "vscode"
+    },
+    "files.associations": {
+        "map": "cpp"
     }
 }

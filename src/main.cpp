@@ -21,7 +21,8 @@ int temperature = 0; // Глобальная переменная для хра�
 
 long injDuty = 0, injCounter = 0, spdCounter = 0;
 long injStartTime = 0;
-long injPerMin = 0, spdPerMin = 0;
+long injPerSec = 0, spdPerMin = 0;
+double distance = 0;
 bool injLastState = false;
 
 struct sensor
@@ -48,7 +49,8 @@ sensor sensors[] = {
   // {A15, 2, 2, "IAT", "IAT", 20.3, 0, 0, 0, false, 1000, 0, 0, 0},
   // {A11, 5, 1, "EGT", "EGT", 343, 0, 0, 0, false, 0, 0, 0, 0},
   {A13, 1, 1, "BOOST", "Boost", 0.32, 2, 0, 0, true, 0, 10, 0, 0},
-  {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 0, 0, false, 0, 5, 0, 0},
+  {0, 9, 3, "DST", "Dist", 1, 2, 0, 0, false, 0, 0, 0, 0},
+  // {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 0, 0, false, 0, 5, 0, 0},
   // {A6, 3, 3, "ATPRESS", "AT Press", 4.1, 1, 0, 0, false, 0, 0},
   // {A6, 3, 3, "ATTEMP", "AT Temp", 42.3, 0, 0, 0, false, 0, 0},
   // {40, 4, 3, "CTEMP", "C Temp", 1, 0, 0, 0, false, 0, 0, 0, 0},
@@ -77,24 +79,26 @@ int detectTemperature() {
   return temperature;
 }
 
-std::map <int, int> timings;
-void once(int delay, void (*callback)(void)) {
+std::map <int, unsigned long> timings;
+void once(int delay, void (*callback)(long)) {
   if (millis() - timings[delay] >= delay)
   {
+    callback(millis() - timings[delay]);
     timings[delay] = millis();
-    callback();
   }
 }
 
-void injStateRise() {
-  injStartTime = millis();
-}
+void injStateChange() {
+  bool state = digitalRead(2);
 
-void injStateFall() {
+  if (state) {
     injCounter ++;
     if (injStartTime) {
-      injDuty = millis() - injStartTime;
+      injDuty = micros() - injStartTime;
     }
+  } else {
+    injStartTime = micros();
+  }
 }
 
 void spdRise() {
@@ -109,12 +113,11 @@ void setup()
 
   for(signed int i = 0; i < sizeof(sensors)/sizeof(sensor); i++) {
     switch (sensors[i].type) {
-        case 6:
-          Serial.println("Attach INJ");
-          attachInterrupt(sensors[i].port, injStateRise, RISING);
-          attachInterrupt(sensors[i].port, injStateFall, FALLING);
-          break;
         case 7:
+          Serial.println("Attach INJ");
+          attachInterrupt(sensors[i].port, injStateChange, CHANGE);
+          break;
+        case 6:
           Serial.println("Attach SPD");
           attachInterrupt(sensors[i].port, spdRise, RISING);
           break;
@@ -131,16 +134,18 @@ void setup()
 
 void loop()
 {
-  once(1000, []()  {  
-    injPerMin = injCounter * 60;
-    spdPerMin = spdCounter * 60;
+  once(500, [](long interval)  {  
+    double dst = (spdCounter / 3) * 2.100;
+    distance += dst / 1000;
+    injPerSec = injCounter * (1000 / interval);
+    spdPerMin = dst * (60000 / interval); //1500 = 60km/h
     injCounter = 0;
     spdCounter = 0;
-
+    // Serial.println(interval);
     detectTemperature();
   });
 
-  once(100, []() {
+  once(200, [](long time) {
     for(unsigned int i = 0; i < sizeof(sensors)/sizeof(sensor); i++) {
         float val = analogRead(sensors[i].port);
         double volt = voltVal(val);
@@ -167,18 +172,22 @@ void loop()
         }
 
         switch (sensors[i].type) {
-          case 6:
-            sensors[i].value = injPerMin;
-            sensors[i].rawValue = injPerMin;
+          case 7:
+            sensors[i].value = injPerSec;
+            sensors[i].rawValue = injPerSec;
             sensors[i].altValue = injDuty;
             break;
-          case 7:
-            sensors[i].value = spdPerMin;
+          case 6:
+            sensors[i].value = spdPerMin * 0.06;
             sensors[i].rawValue = spdPerMin;
             break;
           case 8:
             sensors[i].value = injDuty;
             sensors[i].rawValue = injDuty;
+            break;
+          case 9:
+            sensors[i].value = distance;
+            sensors[i].rawValue = distance;
             break;
           case 3:
             sensors[i].value = pressVal(volt);
@@ -232,7 +241,7 @@ void loop()
           }
 
           if (sensors[i].large) {
-            u8g.setFont(u8g2_font_celibatemonk_tr);
+            u8g.setFont(u8g2_font_ncenR12_tf);
             u8g.drawStr(displayX + 10, displayY, sensors[i].title);
             u8g.setFont(u8g2_font_osr35_tn); //u8g2_font_fub20_tn
             u8g.drawStr(displayX - 15, displayY + 20, tmp_string);
@@ -263,13 +272,12 @@ void loop()
             u8g.setContrast(contrast);
           }
       }
-      u8g.drawLine(65, 5, 65, 59);
-      u8g.drawLine(191, 5, 191, 59);
+      u8g.drawLine(75, 5, 75, 59);
+      u8g.drawLine(171, 5, 171, 59);
     } while ( u8g.nextPage() );
    
     // u8g.drawLine(65, 5, 65, 59);
     // u8g.drawLine(191, 5, 191, 59);
     // u8g.sendBuffer();
-    Serial.println(millis() - start);
   });
 }
