@@ -21,7 +21,8 @@ int temperature = 0; // Глобальная переменная для хра�
 
 long injDuty = 0, injCounter = 0, spdCounter = 0;
 long injStartTime = 0;
-long injPerMin = 0, spdPerMin = 0;
+long injPerSec = 0, spdPerMin = 0;
+long distance = 0;
 bool injLastState = false;
 
 struct sensor
@@ -48,7 +49,8 @@ sensor sensors[] = {
   // {A15, 2, 2, "IAT", "IAT", 20.3, 0, 0, 0, false, 1000, 0, 0, 0},
   // {A11, 5, 1, "EGT", "EGT", 343, 0, 0, 0, false, 0, 0, 0, 0},
   {A13, 1, 1, "BOOST", "Boost", 0.32, 2, 0, 0, true, 0, 10, 0, 0},
-  {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 0, 0, false, 0, 5, 0, 0},
+  {0, 9, 3, "DST", "Dist", 1, 2, 0, 0, false, 0, 0, 0, 0},
+  // {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 0, 0, false, 0, 5, 0, 0},
   // {A6, 3, 3, "ATPRESS", "AT Press", 4.1, 1, 0, 0, false, 0, 0},
   // {A6, 3, 3, "ATTEMP", "AT Temp", 42.3, 0, 0, 0, false, 0, 0},
   // {40, 4, 3, "CTEMP", "C Temp", 1, 0, 0, 0, false, 0, 0, 0, 0},
@@ -133,8 +135,10 @@ void setup()
 void loop()
 {
   once(1000, []()  {  
-    injPerMin = injCounter * 60;
-    spdPerMin = spdCounter * 60;
+    long dst = (spdCounter / 25) * 2.100;
+    distance += dst;
+    injPerSec = injCounter;
+    spdPerMin = dst * 60; //12000 = 60km/h
     injCounter = 0;
     spdCounter = 0;
 
@@ -169,17 +173,21 @@ void loop()
 
         switch (sensors[i].type) {
           case 6:
-            sensors[i].value = injPerMin;
-            sensors[i].rawValue = injPerMin;
+            sensors[i].value = injPerSec;
+            sensors[i].rawValue = injPerSec;
             sensors[i].altValue = injDuty;
             break;
           case 7:
-            sensors[i].value = spdPerMin;
+            sensors[i].value = spdPerMin * 0.06;
             sensors[i].rawValue = spdPerMin;
             break;
           case 8:
             sensors[i].value = injDuty;
             sensors[i].rawValue = injDuty;
+            break;
+          case 9:
+            sensors[i].value = distance / 1000;
+            sensors[i].rawValue = distance;
             break;
           case 3:
             sensors[i].value = pressVal(volt);
@@ -233,7 +241,7 @@ void loop()
           }
 
           if (sensors[i].large) {
-            u8g.setFont(u8g2_font_celibatemonk_tr);
+            u8g.setFont(u8g2_font_ncenR12_tf);
             u8g.drawStr(displayX + 10, displayY, sensors[i].title);
             u8g.setFont(u8g2_font_osr35_tn); //u8g2_font_fub20_tn
             u8g.drawStr(displayX - 15, displayY + 20, tmp_string);
@@ -271,6 +279,5 @@ void loop()
     // u8g.drawLine(65, 5, 65, 59);
     // u8g.drawLine(191, 5, 191, 59);
     // u8g.sendBuffer();
-    Serial.println(millis() - start);
   });
 }
