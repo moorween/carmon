@@ -13,7 +13,6 @@
 #include <ArduinoSTL.h>
 #include <map>
 
-
 #define OLED_CS 45    // Pin 10, CS - Chip select
 #define OLED_DC 48    // Pin 9 - DC digital signal
 #define OLED_RESET 49 // using hardware !RESET from Arduino instead
@@ -127,6 +126,7 @@ void setup()
   led.clear();
   led.setBrightness(30); 
   led.show();
+  
   for(signed int i = 0; i < sizeof(sensors)/sizeof(sensor); i++) {
     switch (sensors[i].type) {
         case 7:
@@ -171,7 +171,7 @@ void loop()
   }
 
   once(500, [](double interval)  {  
-    double dst = (spdCounter / 3) * 2.100;
+    double dst = (spdCounter / 210) * 2.100;
     distance += dst / 1000;
     injPerSec = injCounter * (1000 / interval);
     spdPerMin = dst * (60000 / interval); //1500 = 60km/h
@@ -216,7 +216,7 @@ void loop()
 
         switch (sensors[i].type) {
           case 7:
-            sensors[i].value = injPerSec;
+            sensors[i].value = injPerSec * 2 * 60;
             sensors[i].rawValue = injPerSec;
             sensors[i].altValue = injDuty;
             break;
