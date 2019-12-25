@@ -8,6 +8,8 @@
         "PLATFORMIO_CALLER": "vscode"
     },
     "files.associations": {
-        "map": "cpp"
+        "map": "cpp",
+        "associative_base": "cpp",
+        "utility": "cpp"
     }
 }

@@ -1,7 +1,4 @@
-#include "utils.h"
-const float voltRef = 5.0;
-
-float iatCal[19][2] = {
+float iatArr[19][2] = {
     140, 75.3,
     130, 89.3,
     120, 112.7,
@@ -22,7 +19,7 @@ float iatCal[19][2] = {
     -30, 26114,
     -40, 45313};
 
-float dataArr[143][2] = {
+float egtArr[143][2] = {
     -50, -1.889,
     -40, -1.527,
     -30, -1.156,
@@ -167,91 +164,3 @@ float dataArr[143][2] = {
     1360, 54.466,
     1370, 54.807
 };
-
-int prevIatIdx;
-int prevIdx;
-float pRef = 0;
-
-float pressVal(float value) {
-  return (((value / voltRef) - 0.1) / 0.8) * 10;
-}
-
-float mapVal(float value)
-{
-  const float Umin = 0.4;
-  const float Umax = 4.65;
-  const float Pmin = 200;
-  const float Pmax = 3000;
-
-  float p = (Pmax - Pmin) * (value - Umin) / (Umax - Umin) + Umin;
-  if (pRef == 0)
-  {
-    EEPROM.get(0, pRef);
-    if (pRef == 0) {
-      pRef = p;
-    }
-    EEPROM.put(0, p);
-    Serial.print("Map Correction: ");
-    Serial.println(pRef);
-    Serial.print("EEPROM write: ");
-    Serial.println(p);
-  }
-
-  if (millis() > 10000) {
-    EEPROM.put(0, 0);
-  }
-
-  return p - pRef;
-}
-
-float resVal(float value, int resRef)
-{
-  return (value * resRef) / (voltRef - value);
-}
-
-float voltVal(float value)
-{
-  return (value / 1024.0) * voltRef;
-}
-
-float getIat(float ohm)
-{
-  if (ohm > iatCal[0][1] && ohm < iatCal[17][1])
-  {
-    float unit;
-    for (int i = prevIatIdx; i < 18; i++)
-    {
-      if (iatCal[i][1] > ohm)
-      {
-        prevIatIdx = i;
-        unit = (iatCal[i][1] - iatCal[i - 1][1]) / 10;
-        return iatCal[i][0] + (iatCal[i][1] - ohm) / unit;
-      }
-    }
-    prevIatIdx = 0;
-    return getIat(ohm);
-  } else {
-    return 999;
-  }
-}
-
-float getEGT(float val)
-{
-  if (val > dataArr[0][1] && val < dataArr[142][1])
-  {
-    float unit;
-    for (int i = prevIdx; i < 143; i++)
-    {
-      if (dataArr[i][1] > val)
-      {
-        prevIdx = i;
-        unit = (dataArr[i][1] - dataArr[i + 1][1]) / 10;
-        return dataArr[i][0] + (dataArr[i][1] - val) / unit;
-      }
-    }
-    prevIdx = 0;
-    return getEGT(val);
-  } else {
-    return 999;
-  }
-}
