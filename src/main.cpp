@@ -17,6 +17,7 @@ U8G2_SSD1322_NHD_256X64_F_4W_HW_SPI u8g(U8G2_R2, OLED_CS, OLED_DC, OLED_RESET);
 GButton butt1(11, LOW_PULL); //D11, D13
 GButton butt2(13, LOW_PULL);
 Blinker blinker;
+Async async;
 
 int contrast = 0, displayWidth = 0;
 long injDuty = 0, injTotal = 0, spdCounter = 0;
@@ -38,7 +39,7 @@ struct sensorsServiceData {
   double lowValue = 0;
   double highValue = 0;
   double correction = 0;
-  bool warning = false;
+  int warningCount = 0;
   bool displayed = false;
 };
 
@@ -63,7 +64,7 @@ sensor sensors[] = {
   {A15, 2, 2, "IAT", "IAT", 20.3, 0, 0, 0, false, 1000, 0},
   {A11, 5, 1, "EGT", "EGT", 343, 0, 0, 0, false, 0, 0},
   {A13, 1, 1, "BOOST", "Boost", 0.32, 2, 0, 1.2, true, 0, 10},
-  {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 2.2, 5, false, 0, 5},
+  {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 2.0, 5, false, 0, 5},
   // {A6, 3, 3, "ATPRESS", "AT Press", 4.1, 1, 0, 0, false, 0, 0},
   // {A6, 3, 3, "ATTEMP", "AT Temp", 42.3, 0, 0, 0, false, 0, 0},
   {40, 4, 3, "CTEMP", "C Temp", 1, 0, 0, 100, false, 0, 0},
@@ -117,17 +118,23 @@ void setup()
           attachInterrupt(sensors[i].port, spdRise, RISING);
           break;
         case 1:
-          if (injCounter == 0) {
-            float val = analogRead(sensors[i].port);
-            double volt = voltVal(val);
-            double correction = mapVal(volt);
-            sensors[i].serviceData.correction = correction;
-            EEPROM.put(0, correction);
-            Serial.println("MAP CORRECTION");
-            Serial.println(sensors[i].serviceData.correction);
-          } else {
-            EEPROM.get(0, sensors[i].serviceData.correction);
-          }
+          float val = analogRead(sensors[i].port);
+          async.delay(500, [](double del, paramsData params) {
+            int i = params.key;
+            if (injCounter == 0) {
+              double volt = voltVal(params.value);
+              double correction = mapVal(volt);
+              sensors[i].serviceData.correction = correction;
+              EEPROM.put(0, correction);
+              Serial.println("MAP CORRECTION ONLINE");
+              Serial.println(sensors[i].serviceData.correction);
+            } else {
+              EEPROM.get(0, sensors[i].serviceData.correction);
+              Serial.println("MAP CORRECTION EEPROM");
+              Serial.println(sensors[i].serviceData.correction);
+            }
+          }, {i, val});
+          
           break;
     }
 
@@ -172,7 +179,7 @@ void loop()
   }
 
   once(500, [](double interval)  {  
-    double dst = (spdCounter / 210) * 2.100;
+    double dst = ((double)spdCounter / 300) * 2.100;
     distance += dst / 1000;
     injPerSec = injCounter * (1000 / interval);
     spdPerMin = dst * (60000 / interval); //1500 = 60km/h
@@ -256,6 +263,9 @@ void loop()
             sensors[i].serviceData.rawValue = volt;
             break;
           case 1: //GM Map
+          // Serial.println("MAP");
+          // Serial.println(mapVal(volt));
+          // Serial.println(sensors[i].serviceData.correction);
             sensors[i].value = (mapVal(volt) - sensors[i].serviceData.correction) / 1000;
             sensors[i].serviceData.rawValue = volt;
             break;
@@ -292,9 +302,8 @@ void loop()
           warning = true;
         }
 
-        sensors[i].serviceData.warning = warning;
-
         if (warning) {
+          sensors[i].serviceData.warningCount = 3;
           blinker.blink(3, MAROON);
         }
         // Serial3.print(sensors[i].serialMark);
@@ -323,7 +332,14 @@ void loop()
               tmp_string[1] = "";
             }
           }
-          bool drawTitle = !sensors[i].serviceData.warning || !sensors[i].serviceData.displayed;
+
+          bool drawTitle = true;
+          if (sensors[i].serviceData.warningCount > 0) {
+            if (sensors[i].serviceData.displayed) {
+              drawTitle = false;
+              sensors[i].serviceData.warningCount --;
+            }
+          }
           sensors[i].serviceData.displayed = drawTitle;
            
           if (sensors[i].large) {
@@ -383,6 +399,7 @@ void loop()
     // u8g.sendBuffer();
   });
 
+  async.tick();
   butt1.tick();
   butt2.tick();
   blinker.tick();

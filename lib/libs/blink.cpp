@@ -28,7 +28,7 @@ void Blinker::tick() {
  
     while (it != queue.end()) {
       led.setColor(0, it->first);
-      led.setBrightness(it->second.iteration / 2);
+      led.setBrightness(it->second.iteration * 2);
       led.show();
       
       if (it->second.direction) {
