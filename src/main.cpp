@@ -6,9 +6,10 @@
 #include "../lib/libs/blink.h"
 #include "../lib/libs/async.h"
 #include "../lib/GyverButton/GyverButton.h"
+#include "../lib/BMP280/Adafruit_BMP280.h"
 #include <U8g2lib.h>
 #include <stdlib.h>
-
+ 
 #define OLED_CS 45    // Pin 10, CS - Chip select
 #define OLED_DC 48    // Pin 9 - DC digital signal
 #define OLED_RESET 49 // using hardware !RESET from Arduino instead
@@ -17,6 +18,7 @@ U8G2_SSD1322_NHD_256X64_F_4W_HW_SPI u8g(U8G2_R2, OLED_CS, OLED_DC, OLED_RESET);
 GButton butt1(11, LOW_PULL); //D11, D13
 GButton butt2(13, LOW_PULL);
 Blinker blinker;
+Adafruit_BMP280 bmp280;
 Async async;
 
 int contrast = 0, displayWidth = 0;
@@ -62,18 +64,19 @@ struct sensor
 
 sensor sensors[] = {
   {A15, 2, 2, "IAT", "IAT", 20.3, 0, 0, 0, false, 1000, 0},
-  {A11, 5, 1, "EGT", "EGT", 343, 0, 0, 0, false, 0, 0},
+  {40, 4, 3, "CTEMP", "C Temp", 1, 0, 0, 100, false, 0, 0},
   {A13, 1, 1, "BOOST", "Boost", 0.32, 2, 0, 1.2, true, 0, 10},
-  {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 2.0, 5, false, 0, 5},
+  {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 1.8, 5, false, 0, 5},
   // {A6, 3, 3, "ATPRESS", "AT Press", 4.1, 1, 0, 0, false, 0, 0},
   // {A6, 3, 3, "ATTEMP", "AT Temp", 42.3, 0, 0, 0, false, 0, 0},
-  {40, 4, 3, "CTEMP", "C Temp", 1, 0, 0, 100, false, 0, 0},
+  {0, 11, 3, "L100", "l/100km", 1, 1, 0, 0, false, 0, 0},
   {0, 7, 1, "INJ", "Inj", 10, 0, 0, 0, false, 0, 5},
   {1, 6, 2, "SPD", "Spd", 10, 0, 0, 0, false, 0, 5},
   {0, 8, 3, "DTY", "Duty", 1, 0, 0, 0, false, 0, 0},
   {0, 9, 3, "DST", "Dist", 1, 2, 0, 0, false, 0, 0},
   {0, 10, 3, "FUE", "Fuel", 1, 2, 0, 0, false, 0, 0},
-  {0, 11, 3, "L100", "l/100km", 1, 2, 0, 0, false, 0, 0},
+  
+  {A11, 5, 1, "EGT", "EGT", 343, 0, 0, 0, false, 0, 0},
 };
 
 const int SENSORS_SIZE = sizeof(sensors)/sizeof(sensor);
@@ -105,6 +108,13 @@ void setup()
   Serial.begin(9600);
   Serial3.begin(9600);
   Serial3.println("AT+NAMECarMon");
+ if (!bmp280.begin()) {  
+    Serial.println("Could not find a valid BMP280 sensor, check wiring!");
+    while (1);
+  }
+
+  EEPROM.get(100, distance);
+  EEPROM.get(200, injTotal);
 
   int pageIndex = 0, slots = 6;
   for(unsigned int i = 0; i < SENSORS_SIZE; i++) {
@@ -118,22 +128,29 @@ void setup()
           attachInterrupt(sensors[i].port, spdRise, RISING);
           break;
         case 1:
-          float val = analogRead(sensors[i].port);
-          async.delay(500, [](double del, paramsData params) {
+          // float val = analogRead(sensors[i].port);
+          // async.delay(500, [](double del, paramsData params) {
+          //   int i = params.key;
+          //   if (injCounter == 0) {
+          //     double volt = voltVal(params.value);
+          //     double correction = mapVal(volt);
+          //     sensors[i].serviceData.correction = correction;
+          //     EEPROM.put(0, correction);
+          //     Serial.println("MAP CORRECTION ONLINE");
+          //     Serial.println(sensors[i].serviceData.correction);
+          //   } else {
+          //     EEPROM.get(0, sensors[i].serviceData.correction);
+          //     Serial.println("MAP CORRECTION EEPROM");
+          //     Serial.println(sensors[i].serviceData.correction);
+          //   }
+          // }, {i, val});
+          async.repeat(900000, [](double del, paramsData params) { // one in 15 minutes
             int i = params.key;
-            if (injCounter == 0) {
-              double volt = voltVal(params.value);
-              double correction = mapVal(volt);
-              sensors[i].serviceData.correction = correction;
-              EEPROM.put(0, correction);
-              Serial.println("MAP CORRECTION ONLINE");
-              Serial.println(sensors[i].serviceData.correction);
-            } else {
-              EEPROM.get(0, sensors[i].serviceData.correction);
-              Serial.println("MAP CORRECTION EEPROM");
-              Serial.println(sensors[i].serviceData.correction);
-            }
-          }, {i, val});
+            double correction = bmp280.readPressure() / 133.322;
+            sensors[i].serviceData.correction = correction;
+            Serial.print("MAP correction: ");
+            Serial.println(correction);
+          }, {i, 0});
           
           break;
     }
@@ -161,6 +178,15 @@ void setup()
   u8g.setContrast(0);
 
   displayWidth = u8g.getDisplayWidth();
+
+  async.repeat(5000, [](double del, paramsData p) {
+   if (spdCounter > 0) {
+      EEPROM.put(100, distance);
+    }
+    if (injCounter > 0) {
+      EEPROM.put(200, injTotal);
+    }
+  });
 }
 
 void loop()
@@ -178,8 +204,13 @@ void loop()
     blinker.blink(3, YELLOW);
   }
 
+  if (butt2.isHolded()) {
+    distance = 0;
+    injTotal = 0;
+  }
+
   once(500, [](double interval)  {  
-    double dst = ((double)spdCounter / 300) * 2.100;
+    double dst = ((double)spdCounter / 200) * 2.100;
     distance += dst / 1000;
     injPerSec = injCounter * (1000 / interval);
     spdPerMin = dst * (60000 / interval); //1500 = 60km/h
@@ -247,7 +278,7 @@ void loop()
             sensors[i].serviceData.rawValue = injTotal;
             break;
           case 11:
-            sensors[i].value = (100 / (distance || 1)) * totalFuel; 
+            sensors[i].value = (100 / distance) * totalFuel; 
             sensors[i].serviceData.rawValue = 0;
             break;
           case 3:
@@ -285,15 +316,6 @@ void loop()
           sensors[i].serviceData.highValue = sensors[i].value;
         }
 
-        switch (displayMode) {
-          case 1:
-            sensors[i].value = sensors[i].serviceData.highValue;
-            break;
-          case 2:
-            sensors[i].value = sensors[i].serviceData.lowValue;
-            break;
-        }
-
         bool warning = false;
         if (sensors[i].maxValue != 0 && sensors[i].value > sensors[i].maxValue) {
           warning = true;
@@ -306,6 +328,16 @@ void loop()
           sensors[i].serviceData.warningCount = 3;
           blinker.blink(3, MAROON);
         }
+
+        switch (displayMode) {
+          case 1:
+            sensors[i].value = sensors[i].serviceData.highValue;
+            break;
+          case 2:
+            sensors[i].value = sensors[i].serviceData.lowValue;
+            break;
+        }
+
         // Serial3.print(sensors[i].serialMark);
         // Serial3.print("/");
         // Serial3.print(sensors[i].rawValue);

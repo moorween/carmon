@@ -25,8 +25,8 @@ void once(int delay, void (*callback)(double)) {
 Async::Async() {
 }
 
-void Async::repeat(int delay, void (*cb)(double, paramsData params), paramsData params) {
-  _timings[cb] = {delay, millis(), false, params};
+void Async::repeat(int delay, void (*cb)(double, paramsData params), paramsData params = {0,0}) {
+  _timings[cb] = {delay, 0, false, params};
 }
 
 void Async::delay(int delay, void (*cb)(double, paramsData params), paramsData params) {
@@ -37,7 +37,7 @@ void Async::tick() {
   std::map<callback, timingParams>::iterator it = _timings.begin();
  
     while (it != _timings.end()) {
-      if (millis() - it->second.mls >= it->second.delay) {
+      if ((it->second.mls == 0) || (millis() - it->second.mls >= it->second.delay)) {
         it->first(millis() - it->second.mls, it->second.params);
         if (it->second.once) {
           _timings.erase(it->first);
