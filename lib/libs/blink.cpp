@@ -13,6 +13,7 @@ microLED led(leds, 1, 39);
 struct blinkParams
 {
   int count;
+  int brightnes;
   int iteration = 1;
   bool direction = true; 
 };
@@ -27,18 +28,19 @@ void Blinker::tick() {
     std::map<COLORS, blinkParams>::iterator it = queue.begin();
  
     while (it != queue.end()) {
+      int divider = 2;
       led.setColor(0, it->first);
-      led.setBrightness(it->second.iteration * 2);
+      led.setBrightness((it->second.iteration * divider) / 10 * it->second.brightnes);
       led.show();
       
       if (it->second.direction) {
-        if (it->second.iteration < 128) {
+        if (it->second.iteration < (255 / divider)) {
           it->second.iteration ++;
         } else {
           it->second.direction = false;
         }
       } else {
-        if (it->second.iteration > 1) {
+        if (it->second.iteration > 0) {
           it->second.iteration --;
         } else {
           it->second.direction = true;
@@ -53,9 +55,14 @@ void Blinker::tick() {
   });
 }
 
-void Blinker::blink(int count, COLORS color) {
+void Blinker::blink(int count, COLORS color, int brightnes = 10) {
   queue[color].count = count;
+  queue[color].brightnes = brightnes;
 }
+
+// void Blinker::blink(int count, COLORS color) {
+//   queue[color].count = count;
+// }
 
 void Blinker::blink() {
     Blinker::blink(1, ORANGE);

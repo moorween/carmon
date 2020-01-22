@@ -35,6 +35,8 @@ int pageIndex = 0;
 
 int displayMode = 0;
 
+bool experimental = false;
+
 struct sensorsServiceData {
   double rawValue = 0;
   double altValue = 0;
@@ -65,13 +67,13 @@ struct sensor
 sensor sensors[] = {
   {A15, 2, 2, "IAT", "IAT", 20.3, 0, 0, 0, false, 1000, 0},
   {40, 4, 3, "CTEMP", "C Temp", 1, 0, 0, 100, false, 0, 0},
-  {A13, 1, 1, "BOOST", "Boost", 0.32, 2, 0, 1.2, true, 0, 10},
-  {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 1.8, 5, false, 0, 5},
+  {A13, 1, 1, "BOOST", "Boost", 0.32, 2, 0, 1.2, true, 0, 5},
+  {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 1.7, 5, false, 0, 10},
   // {A6, 3, 3, "ATPRESS", "AT Press", 4.1, 1, 0, 0, false, 0, 0},
   // {A6, 3, 3, "ATTEMP", "AT Temp", 42.3, 0, 0, 0, false, 0, 0},
   {0, 11, 3, "L100", "l/100km", 1, 1, 0, 0, false, 0, 0},
-  {0, 7, 1, "INJ", "Inj", 10, 0, 0, 0, false, 0, 5},
-  {1, 6, 2, "SPD", "Spd", 10, 0, 0, 0, false, 0, 5},
+  {0, 7, 1, "INJ", "Inj", 10, 0, 0, 0, false, 0, 0},
+  {1, 6, 2, "SPD", "Spd", 10, 0, 0, 0, false, 0, 0},
   {0, 8, 3, "DTY", "Duty", 1, 0, 0, 0, false, 0, 0},
   {0, 9, 3, "DST", "Dist", 1, 2, 0, 0, false, 0, 0},
   {0, 10, 3, "FUE", "Fuel", 1, 2, 0, 0, false, 0, 0},
@@ -202,6 +204,7 @@ void loop()
 
   if (butt2.isClick()) {
     blinker.blink(3, YELLOW);
+    experimental = !experimental;
   }
 
   if (butt2.isHolded()) {
@@ -233,9 +236,23 @@ void loop()
         double volt = voltVal(val);
 
         if (sensors[i].averageSize > 0) {
+          
+          if (experimental) {
+            double avgRaw = 0;
+            for (int b = 0; b < sensors[i].averageSize; b ++) {
+              avgRaw += analogRead(sensors[i].port);
+            } 
+
+            volt = voltVal(avgRaw / sensors[i].averageSize);
+
+            once(10000, [](double time) {
+              blinker.blink(1, YELLOW, 1);
+            });
+          }
+          
           avgValues[i][avgIndex[i]] = volt;
 
-          if (avgIndex[i] < sensors[i].averageSize) {
+          if (avgIndex[i] <= sensors[i].averageSize) {
             avgIndex[i] ++;
           } else {
             avgIndex[i] = 0;
@@ -249,7 +266,10 @@ void loop()
               avgSize ++;
             }
           }
-
+          if (sensors[i].type == 3) {
+            Serial.println(avgValue);
+            Serial.println(avgSize);
+          }
           volt = avgValue / avgSize;
         }
 
@@ -273,7 +293,7 @@ void loop()
             break;
           case 10:
             totalFuel = fuelRate(injTotal);
-
+          
             sensors[i].value = totalFuel;
             sensors[i].serviceData.rawValue = injTotal;
             break;
@@ -326,7 +346,7 @@ void loop()
 
         if (warning) {
           sensors[i].serviceData.warningCount = 3;
-          blinker.blink(3, MAROON);
+          // blinker.blink(3, MAROON);
         }
 
         switch (displayMode) {
