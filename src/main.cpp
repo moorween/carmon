@@ -110,7 +110,8 @@ void setup()
   Serial.begin(9600);
   Serial3.begin(9600);
   Serial3.println("AT+NAMECarMon");
- if (!bmp280.begin()) {  
+
+  if (!bmp280.begin()) {  
     Serial.println("Could not find a valid BMP280 sensor, check wiring!");
     while (1);
   }
@@ -146,10 +147,10 @@ void setup()
           //     Serial.println(sensors[i].serviceData.correction);
           //   }
           // }, {i, val});
-          async.repeat(900000, [](double del, paramsData params) { // one in 15 minutes
+          async.repeat(900000, [](double del, paramsData params) { // once in 15 minutes
             int i = params.key;
             double correction = bmp280.readPressure() / 133.322;
-            sensors[i].serviceData.correction = correction;
+            sensors[i].serviceData.correction = correction + 0.06;
             Serial.print("MAP correction: ");
             Serial.println(correction);
           }, {i, 0});
@@ -217,13 +218,6 @@ void loop()
     distance += dst / 1000;
     injPerSec = injCounter * (1000 / interval);
     spdPerMin = dst * (60000 / interval); //1500 = 60km/h
-    //  Serial.print(interval);
-    // Serial.print("   ");
-    // Serial.print(injPerSec);
-    // Serial.print("   ");
-    // Serial.print((1000 / interval));
-    // Serial.print("   ");
-    // Serial.println(injCounter);
     injCounter = 0;
     spdCounter = 0;
    
@@ -314,9 +308,6 @@ void loop()
             sensors[i].serviceData.rawValue = volt;
             break;
           case 1: //GM Map
-          // Serial.println("MAP");
-          // Serial.println(mapVal(volt));
-          // Serial.println(sensors[i].serviceData.correction);
             sensors[i].value = (mapVal(volt) - sensors[i].serviceData.correction) / 1000;
             sensors[i].serviceData.rawValue = volt;
             break;
