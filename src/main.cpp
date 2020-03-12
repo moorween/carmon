@@ -46,6 +46,10 @@ bool experimental = false;
 long fuelFlow[40];
 int flowPos = 0;
 
+int startReady = 0;
+long startTime = 0;
+double time_60 = 0, time_100 = 0;
+
 struct sensorsServiceData {
   char charValue;
   double rawValue = 0;
@@ -95,6 +99,9 @@ sensor sensors[] = {
   {0, 10, 3, "FUE", "Fuel", 1, 2, 0, 0, 0, false, 0, 0},
   
   {A11, 5, 1, "EGT", "EGT", 343, 0, 0, 0, 0, false, 0, 0},
+
+  {0, 13, 3, "0_60", "0-60", 1, 2, 0, 0, 0, false, 0, 0},
+  {0, 14, 3, "0_100", "0-100", 1, 2, 0, 0, 0, false, 0, 0},
 };
 
 const int SENSORS_SIZE = sizeof(sensors)/sizeof(sensor);
@@ -120,6 +127,12 @@ void injStateChange() {
 }
 
 void spdRise() {
+  if (startReady >= 5) {
+    startTime = millis();
+    time_60 = 0;
+    time_100 = 0;
+    startReady = 0;
+  }
   spdCounter ++;
 }
 
@@ -220,6 +233,12 @@ void setup()
 
   displayWidth = u8g.getDisplayWidth();
 
+  async.repeat(1000, [](double del, paramsData p) {
+    if (spdCounter == 0) {
+      startReady += 1;
+    }
+  });
+
   async.repeat(5000, [](double del, paramsData p) {
    if (spdCounter > 0) {
       EEPROM.put(100, distance);
@@ -279,6 +298,17 @@ void loop()
     distance += dst / 1000;
     injPerSec = injCounter * (1000 / interval);
     spdPerMin = dst * (60000 / interval); //1500 = 60km/h
+
+    double spdPerHour = spdPerMin * 0.06;
+
+    if (time_60 == 0 && spdPerMin >= 60) {
+      time_60 = (millis() - startTime) / 1000;
+    }
+
+    if (time_100 == 0 && spdPerMin >= 100) {
+      time_100 = (millis() - startTime) / 1000;
+    }
+
     injCounter = 0;
     spdCounter = 0;
    
@@ -429,6 +459,18 @@ void loop()
             {
               totalFuel = fuelRate(injTotal);
               sensors[i].value = (100 / distance) * totalFuel; 
+              sensors[i].serviceData.rawValue = 0;
+            }
+            break;
+          case 13:
+            {
+              sensors[i].value = time_60;
+              sensors[i].serviceData.rawValue = 0;
+            }
+            break;
+          case 14:
+            {
+              sensors[i].value = time_100;
               sensors[i].serviceData.rawValue = 0;
             }
             break;
