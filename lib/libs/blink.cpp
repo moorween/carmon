@@ -55,7 +55,11 @@ void Blinker::tick() {
   });
 }
 
-void Blinker::blink(int count, COLORS color, int brightnes = 10) {
+void Blinker::blink(int count, COLORS color, int brightnes = 10, bool clear = false) {
+  if (clear) {
+    queue.clear();
+  }
+  
   queue[color].count = count;
   queue[color].brightnes = brightnes;
 }

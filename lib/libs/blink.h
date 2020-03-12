@@ -29,7 +29,7 @@ class Blinker {
 	        void tick();	
             void blink();
             // void blink(int count, COLORS color);
-            void Blinker::blink(int count, COLORS color, int brightnes = 10);
+            void Blinker::blink(int count, COLORS color, int brightnes = 10, bool clear = false);
         private:
             COLORS _color = BLACK;
             int _counts = 0; 

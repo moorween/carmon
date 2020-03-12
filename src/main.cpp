@@ -9,7 +9,8 @@
 #include "../lib/BMP280/Adafruit_BMP280.h"
 #include <U8g2lib.h>
 #include <stdlib.h>
- 
+#include "TimerOne.h"
+
 #define OLED_CS 45    // Pin 10, CS - Chip select
 #define OLED_DC 48    // Pin 9 - DC digital signal
 #define OLED_RESET 49 // using hardware !RESET from Arduino instead
@@ -26,6 +27,10 @@ long injDuty = 0, injTotal = 0, spdCounter = 0;
 long injStartTime = 0;
 long injPerSec = 0, spdPerMin = 0;
 double distance = 0, injCounter = 0;
+
+double distanceNew = 0, fuelNew = 0;
+long injNew = 0;
+
 bool injLastState = false;
 double totalFuel = 0;
 int temperature = 0;
@@ -35,16 +40,24 @@ int pageIndex = 0;
 
 int displayMode = 0;
 
+bool engineRun = false;
 bool experimental = false;
 
+long fuelFlow[40];
+int flowPos = 0;
+
 struct sensorsServiceData {
+  char charValue;
   double rawValue = 0;
   double altValue = 0;
   double lowValue = 0;
   double highValue = 0;
   double correction = 0;
   int warningCount = 0;
+  long warningTime = 0;
   bool displayed = false;
+  bool warning = false;
+  bool panic = false;  
 };
 
 struct sensor
@@ -58,27 +71,30 @@ struct sensor
   int decimals;
   double minValue;
   double maxValue;
+  int panicDelay;
   boolean large;
   int resistanceRef;
   int averageSize; // 10 is MAX
+  int refTo;
   sensorsServiceData serviceData;
 };
 
 sensor sensors[] = {
-  {A15, 2, 2, "IAT", "IAT", 20.3, 0, 0, 0, false, 1000, 0},
-  {40, 4, 3, "CTEMP", "C Temp", 1, 0, 0, 100, false, 0, 0},
-  {A13, 1, 1, "BOOST", "Boost", 0.32, 2, 0, 1.2, true, 0, 5},
-  {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 1.7, 5, false, 0, 10},
+  // {A15, 2, 2, "IAT", "IAT", 20.3, 0, 0, 0, 0, false, 1000, 0},
+  {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 2.8, 3.2, 2000, false, 0, 10, 2},
+  {40, 4, 3, "CTEMP", "C Temp", 1, 0, 0, 100, 10000, false, 0, 0},
+  {A13, 1, 1, "BOOST", "Boost", 0.32, 2, 0, 1.2, 1000, true, 0, 5},
+  {0, 12, 3, "L100N", "l/100km(new)", 1, 1, 0, 0, 0, false, 0, 0},
   // {A6, 3, 3, "ATPRESS", "AT Press", 4.1, 1, 0, 0, false, 0, 0},
   // {A6, 3, 3, "ATTEMP", "AT Temp", 42.3, 0, 0, 0, false, 0, 0},
-  {0, 11, 3, "L100", "l/100km", 1, 1, 0, 0, false, 0, 0},
-  {0, 7, 1, "INJ", "Inj", 10, 0, 0, 0, false, 0, 0},
-  {1, 6, 2, "SPD", "Spd", 10, 0, 0, 0, false, 0, 0},
-  {0, 8, 3, "DTY", "Duty", 1, 0, 0, 0, false, 0, 0},
-  {0, 9, 3, "DST", "Dist", 1, 2, 0, 0, false, 0, 0},
-  {0, 10, 3, "FUE", "Fuel", 1, 2, 0, 0, false, 0, 0},
+  {0, 11, 3, "L100", "l/100km", 1, 1, 0, 0, 0, false, 0, 0},
+  {0, 7, 1, "INJ", "Inj", 10, 0, 0, 0, 0, false, 0, 0},
+  {1, 6, 2, "SPD", "Spd", 10, 0, 0, 0, 0, false, 0, 0},
+  {0, 8, 3, "DTY", "Duty", 1, 0, 0, 0, 0, false, 0, 0},
+  {0, 9, 3, "DST", "Dist", 1, 2, 0, 0, 0, false, 0, 0},
+  {0, 10, 3, "FUE", "Fuel", 1, 2, 0, 0, 0, false, 0, 0},
   
-  {A11, 5, 1, "EGT", "EGT", 343, 0, 0, 0, false, 0, 0},
+  {A11, 5, 1, "EGT", "EGT", 343, 0, 0, 0, 0, false, 0, 0},
 };
 
 const int SENSORS_SIZE = sizeof(sensors)/sizeof(sensor);
@@ -92,9 +108,11 @@ void injStateChange() {
 
   if (state) {
     injCounter ++;
+    engineRun = true;
     if (injStartTime) {
       injDuty = micros() - injStartTime;
       injTotal += injDuty / 1000;
+      injNew += injDuty / 1000;
     }
   } else {
     injStartTime = micros();
@@ -105,17 +123,32 @@ void spdRise() {
   spdCounter ++;
 }
 
+void timerIsr() {
+  butt1.tick();
+  butt2.tick();
+}
+
+void readFuelFlow() {
+  EEPROM.get(512, injNew); // 4 bytes
+  EEPROM.get(516, distanceNew); // 4 bytes
+  EEPROM.get(520, flowPos); // 2 bytes
+  EEPROM.get(522, fuelFlow);
+}
+
 void setup()
 {
   Serial.begin(9600);
-  Serial3.begin(9600);
+  Serial3.begin(115000);
   Serial3.println("AT+NAMECarMon");
+  Timer1.initialize(10000);           // установка таймера на каждые 10000 микросекунд (== 10 мс)
+  Timer1.attachInterrupt(timerIsr);
 
   if (!bmp280.begin()) {  
     Serial.println("Could not find a valid BMP280 sensor, check wiring!");
     while (1);
   }
 
+  readFuelFlow();
   EEPROM.get(100, distance);
   EEPROM.get(200, injTotal);
 
@@ -131,30 +164,35 @@ void setup()
           attachInterrupt(sensors[i].port, spdRise, RISING);
           break;
         case 1:
-          // float val = analogRead(sensors[i].port);
-          // async.delay(500, [](double del, paramsData params) {
-          //   int i = params.key;
-          //   if (injCounter == 0) {
-          //     double volt = voltVal(params.value);
-          //     double correction = mapVal(volt);
-          //     sensors[i].serviceData.correction = correction;
-          //     EEPROM.put(0, correction);
-          //     Serial.println("MAP CORRECTION ONLINE");
-          //     Serial.println(sensors[i].serviceData.correction);
-          //   } else {
-          //     EEPROM.get(0, sensors[i].serviceData.correction);
-          //     Serial.println("MAP CORRECTION EEPROM");
-          //     Serial.println(sensors[i].serviceData.correction);
-          //   }
-          // }, {i, val});
-          async.repeat(900000, [](double del, paramsData params) { // once in 15 minutes
+        
+          async.delay(500, [](double del, paramsData params) {
             int i = params.key;
-            double correction = bmp280.readPressure() / 133.322;
-            sensors[i].serviceData.correction = correction + 0.06;
-            Serial.print("MAP correction: ");
-            Serial.println(correction);
-          }, {i, 0});
           
+            async.repeat(900000, [](double del, paramsData params) { // once in 15 minutes
+              int i = params.key;
+
+              double atmPress = bmp280.readPressure() / 133.322;
+              double correction = 0;
+
+              if (!engineRun) {
+                double val = analogRead(sensors[i].port);
+                double volt = voltVal(val);
+                correction = mapVal(volt) - atmPress;
+
+                EEPROM.put(0, correction);
+                Serial.println("MAP CORRECTION ONLINE");
+                Serial.println(correction);
+              } else {
+                EEPROM.get(0, correction);
+                Serial.println("MAP CORRECTION EEPROM");
+                Serial.println(correction);
+              }
+            
+              sensors[i].serviceData.correction = atmPress + correction;
+              Serial.print("MAP atmosphere pressure: ");
+              Serial.println(atmPress);
+            }, {i, 0});
+          }, {i, 0});
           break;
     }
 
@@ -200,17 +238,40 @@ void loop()
 
   if (butt1.isHolded()) {
     displayMode = displayMode < 2 ? displayMode + 1 : 0;
-    Serial.println(displayMode);
   }
 
   if (butt2.isClick()) {
     blinker.blink(3, YELLOW);
     experimental = !experimental;
+
+    // for (int i = 0; i < 15; i ++) {
+    //   fuelFlow[i] = 28500;
+    // }
+    // distanceNew = 0.39;
+    // injNew = 286;
+    // flowPos = 15;
+    // EEPROM.put(512, injNew); // 4 bytes
+    // EEPROM.put(516, distanceNew); // 4 bytes
+    // EEPROM.put(520, flowPos); // 2 bytes
+    // EEPROM.put(522, fuelFlow);
   }
 
-  if (butt2.isHolded()) {
-    distance = 0;
-    injTotal = 0;
+  if (butt2.isHolded()) { // reset counters
+    if (distanceNew == 0) {
+      // distance = 0;
+      // injTotal = 0;
+    }   
+    
+    distanceNew = 0;
+    injNew = 0;
+    flowPos = 0;
+    
+    EEPROM.put(512, injNew); // 4 bytes
+    EEPROM.put(516, distanceNew); // 4 bytes
+    EEPROM.put(520, flowPos); // 2 bytes
+
+    memset(fuelFlow,0,sizeof(fuelFlow));
+    EEPROM.put(522, fuelFlow);
   }
 
   once(500, [](double interval)  {  
@@ -221,6 +282,23 @@ void loop()
     injCounter = 0;
     spdCounter = 0;
    
+    distanceNew += dst / 1000;
+    if (distanceNew >= 5) {
+      fuelFlow[flowPos] = injNew;
+      
+      distanceNew = distanceNew - 5;
+      flowPos = flowPos < 39 ? flowPos + 1 : 0; 
+
+      EEPROM.put(520, flowPos); // 2 bytes
+      EEPROM.put(522 + (flowPos * 4), injNew);
+      injNew = 0;
+    }
+
+    if (dst > 0) {
+      EEPROM.put(512, injNew); // 4 bytes
+      EEPROM.put(516, distanceNew); // 4 bytes
+    }
+    
     temperature = detectTemperature();
   });
 
@@ -260,84 +338,144 @@ void loop()
               avgSize ++;
             }
           }
-          if (sensors[i].type == 3) {
-            Serial.println(avgValue);
-            Serial.println(avgSize);
-          }
+    
           volt = avgValue / avgSize;
         }
 
         switch (sensors[i].type) {
-          case 7:
-            sensors[i].value = injPerSec * 2 * 60;
-            sensors[i].serviceData.rawValue = injPerSec;
-            sensors[i].serviceData.altValue = injDuty;
-            break;
-          case 6:
-            sensors[i].value = spdPerMin * 0.06;
-            sensors[i].serviceData.rawValue = spdPerMin;
-            break;
-          case 8:
-            sensors[i].value = injDuty;
-            sensors[i].serviceData.rawValue = injDuty;
-            break;
-          case 9:
-            sensors[i].value = distance;
-            sensors[i].serviceData.rawValue = distance;
-            break;
-          case 10:
-            totalFuel = fuelRate(injTotal);
-          
-            sensors[i].value = totalFuel;
-            sensors[i].serviceData.rawValue = injTotal;
-            break;
-          case 11:
-            sensors[i].value = (100 / distance) * totalFuel; 
-            sensors[i].serviceData.rawValue = 0;
-            break;
           case 3:
-            sensors[i].value = pressVal(volt);
-            sensors[i].serviceData.rawValue = volt;
+            {
+              sensors[i].value = pressVal(volt);
+              sensors[i].serviceData.rawValue = volt;
+            }
             break;
           case 4:
-            sensors[i].value = temperature;
-            sensors[i].serviceData.rawValue = temperature;
+            {
+              sensors[i].value = temperature;
+              sensors[i].serviceData.rawValue = temperature;
+            }
             break;
           case 5:
-            sensors[i].value = getEGT(voltVal(val) * 1000);
-            sensors[i].serviceData.rawValue = volt;
+            {
+              sensors[i].value = getEGT(voltVal(val) * 1000);
+              sensors[i].serviceData.rawValue = volt;
+            }
             break;
           case 1: //GM Map
-            sensors[i].value = (mapVal(volt) - sensors[i].serviceData.correction) / 1000;
-            sensors[i].serviceData.rawValue = volt;
+            {
+              sensors[i].value = (mapVal(volt) - sensors[i].serviceData.correction) / 1000;
+              sensors[i].serviceData.rawValue = volt;
+            }
             break;
           case 2: // IAT
-            float res = resVal(volt, sensors[i].resistanceRef);
-            sensors[i].value = getIat(res);
-            sensors[i].serviceData.rawValue = res;
+            {
+              float res = resVal(volt, sensors[i].resistanceRef);
+              sensors[i].value = getIat(res);
+              sensors[i].serviceData.rawValue = res;
+            }
+            break;
+          case 12:
+            {
+              double distanceSumm = distanceNew;
+              long injSumm = injNew;
+
+              for (int a = 0; a < 40; a ++) {
+                if (fuelFlow[a] > 0) {
+                  injSumm += fuelFlow[a];
+                  distanceSumm += 5;
+                }
+              }
+
+              double fuelSumm = fuelRate(injSumm);
+                
+              sensors[i].value = (100 / distanceSumm) * fuelSumm; 
+              sensors[i].serviceData.rawValue = 0;
+            }
+            break;
+          case 7:
+            {
+              sensors[i].value = injPerSec * 2 * 60;
+              sensors[i].serviceData.rawValue = injPerSec;
+              sensors[i].serviceData.altValue = injDuty;
+            }
+            break;
+          case 6:
+            {
+              sensors[i].value = spdPerMin * 0.06;
+              sensors[i].serviceData.rawValue = spdPerMin;
+            }
+            break;
+          case 8:
+            {
+              sensors[i].value = injDuty;
+              sensors[i].serviceData.rawValue = injDuty;
+            }
+            break;
+          case 9:
+            {
+              sensors[i].value = distance;
+              sensors[i].serviceData.rawValue = distance;
+            }
+            break;
+          case 10:
+            {
+              totalFuel = fuelRate(injTotal);
+          
+              sensors[i].value = totalFuel;
+              sensors[i].serviceData.rawValue = injTotal;
+            }
+            break;
+          case 11:
+            {
+              totalFuel = fuelRate(injTotal);
+              sensors[i].value = (100 / distance) * totalFuel; 
+              sensors[i].serviceData.rawValue = 0;
+            }
             break;
         }
 
-        if (sensors[i].serviceData.lowValue == 0 || 
-          sensors[i].serviceData.lowValue > sensors[i].value) {
-          sensors[i].serviceData.lowValue = sensors[i].value;
+        if (engineRun) {
+            if (sensors[i].serviceData.lowValue == 0 || 
+              sensors[i].serviceData.lowValue > sensors[i].value) {
+              sensors[i].serviceData.lowValue = sensors[i].value;
+            }
+            if (sensors[i].serviceData.highValue == 0 || 
+              sensors[i].serviceData.highValue < sensors[i].value) {
+              sensors[i].serviceData.highValue = sensors[i].value;
+            }
+
         }
-        if (sensors[i].serviceData.highValue == 0 || 
-          sensors[i].serviceData.highValue < sensors[i].value) {
-          sensors[i].serviceData.highValue = sensors[i].value;
+        
+        bool warning = false;
+        double value = sensors[i].value;
+
+        if (sensors[i].refTo) {
+          value = value - sensors[sensors[i].refTo].value;
         }
 
-        bool warning = false;
-        if (sensors[i].maxValue != 0 && sensors[i].value > sensors[i].maxValue) {
+        if (sensors[i].maxValue != 0 && value > sensors[i].maxValue) {
           warning = true;
         }
-        if (sensors[i].minValue != 0 && sensors[i].value < sensors[i].minValue) {
+        if (sensors[i].minValue != 0 && value < sensors[i].minValue) {
           warning = true;
         }
+
+        sensors[i].serviceData.warning = warning;
 
         if (warning) {
           sensors[i].serviceData.warningCount = 3;
-          // blinker.blink(3, MAROON);
+          sensors[i].serviceData.warningTime += time;
+          if (engineRun) {
+
+            if (sensors[i].panicDelay > 0 && sensors[i].serviceData.warningTime > sensors[i].panicDelay) {
+              blinker.blink(3, MAROON);
+            } else {
+              blinker.blink(3, YELLOW);
+            }
+            
+          }
+        } else {
+          sensors[i].serviceData.warningTime = 0;
         }
 
         switch (displayMode) {
@@ -349,12 +487,21 @@ void loop()
             break;
         }
 
-        // Serial3.print(sensors[i].serialMark);
+        // char tmp_string[256];
+        // dtostrf(sensors[i].value, 2, sensors[i].decimals, tmp_string);  
+        // if (sensors[i].value < 0) {
+        //   if (tmp_string[1] == '0') {
+        //     tmp_string[1] = "";
+        //   };
+        // }
+
+        // sensors[i].serviceData.charValue = *tmp_string;
+        // Serial3.print();
         // Serial3.print("/");
-        // Serial3.print(sensors[i].rawValue);
+        // Serial3.print(sensors[i].serviceData.rawValue);
         // Serial3.print("/");
         // Serial3.print(sensors[i].value);
-        // Serial3.println("END");
+        // Serial3.println(String(sensors[i].serialMark) + "/" + tmp_string + "END");
     }
   });
 
@@ -443,7 +590,5 @@ void loop()
   });
 
   async.tick();
-  butt1.tick();
-  butt2.tick();
   blinker.tick();
 }

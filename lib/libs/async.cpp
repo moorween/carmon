@@ -29,8 +29,14 @@ void Async::repeat(int delay, void (*cb)(double, paramsData params), paramsData 
   _timings[cb] = {delay, 0, false, params};
 }
 
+void Async::delay(int delay, bool replace, void (*cb)(double, paramsData params), paramsData params) {
+  if (_timings.find(cb) == _timings.end() || replace) {
+    _timings[cb] = {delay, millis(), true, params};
+  }
+}
+
 void Async::delay(int delay, void (*cb)(double, paramsData params), paramsData params) {
-  _timings[cb] = {delay, millis(), true, params};
+  Async::delay(delay, true, cb, params);
 }
 
 void Async::tick() {
