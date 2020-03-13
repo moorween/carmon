@@ -85,23 +85,23 @@ struct sensor
 
 sensor sensors[] = {
   // {A15, 2, 2, "IAT", "IAT", 20.3, 0, 0, 0, 0, false, 1000, 0},
-  {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 2.8, 3.2, 2000, false, 0, 10, 2},
+  {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 2.8, 3.5, 2000, false, 0, 10, 2},
   {40, 4, 3, "CTEMP", "C Temp", 1, 0, 0, 100, 10000, false, 0, 0},
   {A13, 1, 1, "BOOST", "Boost", 0.32, 2, 0, 1.2, 1000, true, 0, 5},
-  {0, 12, 3, "L100N", "l/100km(new)", 1, 1, 0, 0, 0, false, 0, 0},
+  {0, 12, 3, "L100N", "l/100km", 1, 1, 0, 0, 0, false, 0, 0},
+  {0, 13, 3, "L5N", "l/100km(5km)", 1, 1, 0, 0, 0, false, 0, 0},
   // {A6, 3, 3, "ATPRESS", "AT Press", 4.1, 1, 0, 0, false, 0, 0},
   // {A6, 3, 3, "ATTEMP", "AT Temp", 42.3, 0, 0, 0, false, 0, 0},
-  {0, 11, 3, "L100", "l/100km", 1, 1, 0, 0, 0, false, 0, 0},
   {0, 7, 1, "INJ", "Inj", 10, 0, 0, 0, 0, false, 0, 0},
   {1, 6, 2, "SPD", "Spd", 10, 0, 0, 0, 0, false, 0, 0},
   {0, 8, 3, "DTY", "Duty", 1, 0, 0, 0, 0, false, 0, 0},
   {0, 9, 3, "DST", "Dist", 1, 2, 0, 0, 0, false, 0, 0},
   {0, 10, 3, "FUE", "Fuel", 1, 2, 0, 0, 0, false, 0, 0},
-  
-  {A11, 5, 1, "EGT", "EGT", 343, 0, 0, 0, 0, false, 0, 0},
+  {0, 11, 3, "L100", "l/100km", 1, 1, 0, 0, 0, false, 0, 0},
+  // {A11, 5, 1, "EGT", "EGT", 343, 0, 0, 0, 0, false, 0, 0},
 
-  {0, 13, 3, "0_60", "0-60", 1, 2, 0, 0, 0, false, 0, 0},
-  {0, 14, 3, "0_100", "0-100", 1, 2, 0, 0, 0, false, 0, 0},
+  {0, 40, 3, "0_60", "0-60", 1, 2, 0, 0, 0, false, 0, 0},
+  {0, 41, 3, "0_100", "0-100", 1, 2, 0, 0, 0, false, 0, 0},
 };
 
 const int SENSORS_SIZE = sizeof(sensors)/sizeof(sensor);
@@ -234,7 +234,7 @@ void setup()
   displayWidth = u8g.getDisplayWidth();
 
   async.repeat(1000, [](double del, paramsData p) {
-    if (spdCounter == 0) {
+    if (spdCounter < 3) {
       startReady += 1;
     }
   });
@@ -301,11 +301,11 @@ void loop()
 
     double spdPerHour = spdPerMin * 0.06;
 
-    if (time_60 == 0 && spdPerMin >= 60) {
+    if (time_60 == 0 && spdPerHour >= 60) {
       time_60 = (millis() - startTime) / 1000;
     }
 
-    if (time_100 == 0 && spdPerMin >= 100) {
+    if (time_100 == 0 && spdPerHour >= 100) {
       time_100 = (millis() - startTime) / 1000;
     }
 
@@ -314,10 +314,10 @@ void loop()
    
     distanceNew += dst / 1000;
     if (distanceNew >= 5) {
-      fuelFlow[flowPos] = injNew;
-      
-      distanceNew = distanceNew - 5;
       flowPos = flowPos < 39 ? flowPos + 1 : 0; 
+
+      fuelFlow[flowPos] = injNew;
+      distanceNew = distanceNew - 5;
 
       EEPROM.put(520, flowPos); // 2 bytes
       EEPROM.put(522 + (flowPos * 4), injNew);
@@ -422,6 +422,23 @@ void loop()
               sensors[i].serviceData.rawValue = 0;
             }
             break;
+          case 13:
+            {
+              double distanceSumm = distanceNew;
+              long injSumm = injNew; 
+              
+              // 5 km
+              if (fuelFlow[flowPos] > 0) { 
+                  injSumm += fuelFlow[flowPos];
+                  distanceSumm += 5;
+              }
+
+              double fuelSumm = fuelRate(injSumm);
+                
+              sensors[i].value = (100 / distanceSumm) * fuelSumm; 
+              sensors[i].serviceData.rawValue = 0;
+            }
+            break;
           case 7:
             {
               sensors[i].value = injPerSec * 2 * 60;
@@ -462,13 +479,13 @@ void loop()
               sensors[i].serviceData.rawValue = 0;
             }
             break;
-          case 13:
+          case 40:
             {
               sensors[i].value = time_60;
               sensors[i].serviceData.rawValue = 0;
             }
             break;
-          case 14:
+          case 41:
             {
               sensors[i].value = time_100;
               sensors[i].serviceData.rawValue = 0;
