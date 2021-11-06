@@ -86,9 +86,10 @@ struct sensor
 sensor sensors[] = {
   // {A15, 2, 2, "IAT", "IAT", 20.3, 0, 0, 0, 0, false, 1000, 0},
   {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 2.8, 3.5, 1000, false, 0, 10, 2},
-  {40, 4, 3, "CTEMP", "C Temp", 1, 0, 0, 100, 10000, false, 0, 0},
+  {A5, 15, 1, "VOLT", "Volt", 12.0, 1, 12, 14.7, 1000, false, 0, 5, 0},
   {A13, 1, 1, "BOOST", "Boost", 0.32, 2, 0, 1.2, 1000, true, 0, 5},
   {0, 12, 3, "L100N", "l/100km", 1, 1, 0, 0, 0, false, 0, 0},
+  {40, 4, 3, "CTEMP", "C Temp", 1, 0, 0, 0, 10000, false, 0, 0},
   {0, 13, 3, "L5N", "l/100km(5km)", 1, 1, 0, 0, 0, false, 0, 0},
   // {A6, 3, 3, "ATPRESS", "AT Press", 4.1, 1, 0, 0, false, 0, 0},
   // {A6, 3, 3, "ATTEMP", "AT Temp", 42.3, 0, 0, 0, false, 0, 0},
@@ -479,6 +480,12 @@ void loop()
               totalFuel = fuelRate(injTotal);
               sensors[i].value = (100 / distance) * totalFuel; 
               sensors[i].serviceData.rawValue = 0;
+            }
+            break;
+          case 15:
+            {
+              sensors[i].value = volt / 0.2130; // R1 = 56kOm, R2 = 14.7 kOm
+              sensors[i].serviceData.rawValue = volt;
             }
             break;
           case 40:
