@@ -85,7 +85,7 @@ struct sensor
 
 sensor sensors[] = {
   // {A15, 2, 2, "IAT", "IAT", 20.3, 0, 0, 0, 0, false, 1000, 0},
-  {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 2.8, 3.5, 2000, false, 0, 10, 2},
+  {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 2.8, 3.5, 1000, false, 0, 10, 2},
   {40, 4, 3, "CTEMP", "C Temp", 1, 0, 0, 100, 10000, false, 0, 0},
   {A13, 1, 1, "BOOST", "Boost", 0.32, 2, 0, 1.2, 1000, true, 0, 5},
   {0, 12, 3, "L100N", "l/100km", 1, 1, 0, 0, 0, false, 0, 0},
@@ -293,8 +293,12 @@ void loop()
     EEPROM.put(522, fuelFlow);
   }
 
+  once(1000, [](double interval)  {  
+    temperature = detectTemperature();
+  });
+
   once(500, [](double interval)  {  
-    double dst = ((double)spdCounter / 200) * 2.100;
+    double dst = ((double)spdCounter / 4) * 2.100;
     distance += dst / 1000;
     injPerSec = injCounter * (1000 / interval);
     spdPerMin = dst * (60000 / interval); //1500 = 60km/h
@@ -328,8 +332,6 @@ void loop()
       EEPROM.put(512, injNew); // 4 bytes
       EEPROM.put(516, distanceNew); // 4 bytes
     }
-    
-    temperature = detectTemperature();
   });
 
   once(200, [](double time) {
