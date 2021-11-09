@@ -86,7 +86,7 @@ struct sensor
 sensor sensors[] = {
   // {A15, 2, 2, "IAT", "IAT", 20.3, 0, 0, 0, 0, false, 1000, 0},
   {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 2.8, 3.5, 1000, false, 0, 10, 2},
-  {A5, 15, 1, "VOLT", "Volt", 12.0, 1, 12, 14.7, 1000, false, 0, 5, 0},
+  {A5, 15, 1, "VOLT", "Volt", 12.0, 1, 0, 14.7, 1000, false, 0, 5, 0},
   {A13, 1, 1, "BOOST", "Boost", 0.32, 2, 0, 1.2, 1000, true, 0, 5},
   {0, 12, 3, "L100N", "l/100km", 1, 1, 0, 0, 0, false, 0, 0},
   {40, 4, 3, "CTEMP", "C Temp", 1, 0, 0, 0, 10000, false, 0, 0},
@@ -294,12 +294,12 @@ void loop()
     EEPROM.put(522, fuelFlow);
   }
 
-  once(1000, [](double interval)  {  
+  once(1500, [](double interval)  {  
     temperature = detectTemperature();
   });
 
   once(500, [](double interval)  {  
-    double dst = ((double)spdCounter / 4) * 2.100;
+    double dst = ((double)spdCounter / 3) * 2.100;
     distance += dst / 1000;
     injPerSec = injCounter * (1000 / interval);
     spdPerMin = dst * (60000 / interval); //1500 = 60km/h
@@ -319,7 +319,7 @@ void loop()
    
     distanceNew += dst / 1000;
     if (distanceNew >= 5) {
-      flowPos = flowPos < 39 ? flowPos + 1 : 0; 
+      flowPos = flowPos < 19 ? flowPos + 1 : 0; 
 
       fuelFlow[flowPos] = injNew;
       distanceNew = distanceNew - 5;
@@ -412,7 +412,7 @@ void loop()
               double distanceSumm = distanceNew;
               long injSumm = injNew;
 
-              for (int a = 0; a < 40; a ++) {
+              for (int a = 0; a < 20; a ++) {
                 if (fuelFlow[a] > 0) {
                   injSumm += fuelFlow[a];
                   distanceSumm += 5;
@@ -517,7 +517,7 @@ void loop()
         bool warning = false;
         double value = sensors[i].value;
 
-        if (sensors[i].refTo) {
+        if (sensors[i].refTo && sensors[sensors[i].refTo].value > 0) {
           value = value - sensors[sensors[i].refTo].value;
         }
 
