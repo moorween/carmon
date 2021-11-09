@@ -1,6 +1,6 @@
 #include <SPI.h>
 #include <Wire.h>
-#include <Arduino.h>
+#include "Arduino.h"
 #include "../lib/libs/utils.h"
 #include "../lib/libs/temp.h"
 #include "../lib/libs/blink.h"
@@ -10,6 +10,10 @@
 #include <U8g2lib.h>
 #include <stdlib.h>
 #include "TimerOne.h"
+
+#ifndef max
+    #define max(a,b) ((a) > (b) ? (a) : (b))
+#endif
 
 #define OLED_CS 45    // Pin 10, CS - Chip select
 #define OLED_DC 48    // Pin 9 - DC digital signal
@@ -35,7 +39,7 @@ bool injLastState = false;
 double totalFuel = 0;
 int temperature = 0;
 
-int pageStart[5] = {0}, pageEnd[5] = {0};
+int pageStart[7] = {0}, pageEnd[7] = {0};
 int pageIndex = 0;
 
 int displayMode = 0;
@@ -62,6 +66,7 @@ struct sensorsServiceData {
   bool displayed = false;
   bool warning = false;
   bool panic = false;  
+  int strWidth = 0;
 };
 
 struct sensor
@@ -88,13 +93,13 @@ sensor sensors[] = {
   {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 2.8, 3.5, 1000, false, 0, 10, 2},
   {A5, 15, 1, "VOLT", "Volt", 12.0, 1, 0, 14.7, 1000, false, 0, 5, 0},
   {A13, 1, 1, "BOOST", "Boost", 0.32, 2, 0, 1.2, 1000, true, 0, 5},
-  {0, 12, 3, "L100N", "l/100km", 1, 1, 0, 0, 0, false, 0, 0},
+  {0, 12, 3, "L100N", "l/100km", 20, 1, 0, 0, 0, false, 0, 0},
   {40, 4, 3, "CTEMP", "C Temp", 1, 0, 0, 0, 10000, false, 0, 0},
-  {0, 13, 3, "L5N", "l/100km(5km)", 1, 1, 0, 0, 0, false, 0, 0},
+  {0, 13, 3, "L5N", "l/(5km)", 20, 1, 0, 0, 0, false, 0, 0},
   // {A6, 3, 3, "ATPRESS", "AT Press", 4.1, 1, 0, 0, false, 0, 0},
   // {A6, 3, 3, "ATTEMP", "AT Temp", 42.3, 0, 0, 0, false, 0, 0},
-  {0, 7, 1, "INJ", "Inj", 10, 0, 0, 0, 0, false, 0, 0},
   {1, 6, 2, "SPD", "Spd", 10, 0, 0, 0, 0, false, 0, 0},
+  {0, 7, 1, "INJ", "Inj", 10, 0, 0, 0, 0, false, 0, 0},
   {0, 8, 3, "DTY", "Duty", 1, 0, 0, 0, 0, false, 0, 0},
   {0, 9, 3, "DST", "Dist", 1, 2, 0, 0, 0, false, 0, 0},
   {0, 10, 3, "FUE", "Fuel", 1, 2, 0, 0, 0, false, 0, 0},
@@ -166,7 +171,7 @@ void setup()
   EEPROM.get(100, distance);
   EEPROM.get(200, injTotal);
 
-  int pageIndex = 0, slots = 6;
+  int pageIndex = 0, slots = 8;
   for(unsigned int i = 0; i < SENSORS_SIZE; i++) {
     switch (sensors[i].type) {
         case 7:
@@ -221,7 +226,7 @@ void setup()
       pageIndex ++;
       pageStart[pageIndex] = i + 1;
       pageEnd[pageIndex] = i;
-      slots = 6;
+      slots = 8;
     }
   }
   pageEnd[pageIndex] = SENSORS_SIZE - 1;
@@ -336,6 +341,7 @@ void loop()
   });
 
   once(200, [](double time) {
+    // return;
     for(unsigned int i = 0; i < SENSORS_SIZE; i++) {
         float val = analogRead(sensors[i].port);
         double volt = voltVal(val);
@@ -580,9 +586,10 @@ void loop()
     // u8g.clearBuffer();
     u8g.firstPage();
     do {
+      int maxWidth = 0;
       for(unsigned int i = pageStart[pageIndex]; (i <= pageEnd[pageIndex] && i < SENSORS_SIZE); i++) {
           int yPlus = 32;
-
+          int xPlus = 50;
           char tmp_string[256];
           dtostrf(sensors[i].value, 2, sensors[i].decimals, tmp_string);  
           if (sensors[i].value < 0) {
@@ -604,14 +611,15 @@ void loop()
             u8g.setFont(u8g2_font_ncenR12_tf);
             drawTitle && u8g.drawStr(displayX + 10, displayY, sensors[i].title);
             u8g.setFont(u8g2_font_osr35_tn); //u8g2_font_fub20_tn
-            u8g.drawStr(displayX - 15, displayY + 20, tmp_string);
+            u8g.drawStr(displayX, displayY + 20, tmp_string);
             yPlus = 64;
+            xPlus = 106;
           } else {
             if (displayX > 180) {
               u8g.setFont(u8g2_font_5x8_mf);
               drawTitle && u8g.drawStr(displayWidth - u8g.getStrWidth(sensors[i].title), displayY, sensors[i].title);
               u8g.setFont(u8g2_font_helvR18_tn); //u8g2_font_fub20_tn
-              u8g.drawStr(displayWidth - u8g.getStrWidth(tmp_string), displayY + 8, tmp_string);
+              u8g.drawStr(max(displayX, displayWidth - u8g.getStrWidth(tmp_string)), displayY + 8, tmp_string);
             } else {
               u8g.setFont(u8g2_font_5x8_mf);
               drawTitle && u8g.drawStr(displayX, displayY, sensors[i].title);
@@ -619,21 +627,28 @@ void loop()
               u8g.drawStr(displayX, displayY + 8, tmp_string);
             }
           }
+          sensors[i].serviceData.strWidth = max(sensors[i].serviceData.strWidth, max(0, u8g.getStrWidth(tmp_string)));
+          maxWidth = max(maxWidth, sensors[i].serviceData.strWidth);
+          // maxWidth = sensors[i].serviceData.strWidth;
           
           if ((displayY + yPlus) >= 64) {
+            displayX += maxWidth + 7;
             displayY = 0;
-            displayX += 94;
+            maxWidth = 0;
+            if (displayX < displayWidth) {
+              u8g.drawLine(displayX - 3, 5, displayX - 3, 59);
+            }
           } else {
             displayY += yPlus;
           }
-          
+          // sensors[i].serviceData.strWidth -= 1;
           if (contrast < 255) {
             contrast += 15;
             u8g.setContrast(contrast);
           }
       }
-      u8g.drawLine(75, 5, 75, 59);
-      u8g.drawLine(181, 5, 181, 59);
+      // u8g.drawLine(45, 5, 45, 59);
+      // u8g.drawLine(151, 5, 151, 59);
 
       switch (displayMode) {
         case 1:
