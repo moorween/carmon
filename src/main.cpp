@@ -590,6 +590,8 @@ void loop()
       for(unsigned int i = pageStart[pageIndex]; (i <= pageEnd[pageIndex] && i < SENSORS_SIZE); i++) {
           int yPlus = 32;
           int xPlus = 50;
+          int titleWidth = 0;
+          int strWidth = 0;
           char tmp_string[256];
           dtostrf(sensors[i].value, 2, sensors[i].decimals, tmp_string);  
           if (sensors[i].value < 0) {
@@ -608,26 +610,32 @@ void loop()
           sensors[i].serviceData.displayed = drawTitle;
            
           if (sensors[i].large) {
-            u8g.setFont(u8g2_font_ncenR12_tf);
-            drawTitle && u8g.drawStr(displayX + 10, displayY, sensors[i].title);
             u8g.setFont(u8g2_font_osr35_tn); //u8g2_font_fub20_tn
             u8g.drawStr(displayX, displayY + 20, tmp_string);
+            strWidth = u8g.getStrWidth(tmp_string);
+            u8g.setFont(u8g2_font_ncenR12_tf);
+            titleWidth = u8g.getStrWidth(sensors[i].title);
+            drawTitle && u8g.drawStr(displayX + ((max(sensors[i].serviceData.strWidth, strWidth) - titleWidth) / 2), displayY, sensors[i].title);
             yPlus = 64;
             xPlus = 106;
           } else {
             if (displayX > 180) {
               u8g.setFont(u8g2_font_5x8_mf);
-              drawTitle && u8g.drawStr(displayWidth - u8g.getStrWidth(sensors[i].title), displayY, sensors[i].title);
+              titleWidth = u8g.getStrWidth(sensors[i].title);
+              drawTitle && u8g.drawStr(displayWidth - titleWidth, displayY, sensors[i].title);
               u8g.setFont(u8g2_font_helvR18_tn); //u8g2_font_fub20_tn
-              u8g.drawStr(max(displayX, displayWidth - u8g.getStrWidth(tmp_string)), displayY + 8, tmp_string);
+              strWidth = u8g.getStrWidth(tmp_string);
+              u8g.drawStr(max(displayX, displayWidth - strWidth), displayY + 8, tmp_string);
             } else {
               u8g.setFont(u8g2_font_5x8_mf);
+              titleWidth = u8g.getStrWidth(sensors[i].title);
               drawTitle && u8g.drawStr(displayX, displayY, sensors[i].title);
               u8g.setFont(u8g2_font_helvR18_tn); //u8g2_font_fub20_tn
+              strWidth = u8g.getStrWidth(tmp_string);
               u8g.drawStr(displayX, displayY + 8, tmp_string);
             }
           }
-          sensors[i].serviceData.strWidth = max(sensors[i].serviceData.strWidth, max(0, u8g.getStrWidth(tmp_string)));
+          sensors[i].serviceData.strWidth = max(sensors[i].serviceData.strWidth, strWidth);
           maxWidth = max(maxWidth, sensors[i].serviceData.strWidth);
           // maxWidth = sensors[i].serviceData.strWidth;
           
