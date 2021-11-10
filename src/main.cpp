@@ -12,7 +12,7 @@
 #include "TimerOne.h"
 
 #ifndef max
-    #define max(a,b) ((a) > (b) ? (a) : (b))
+#define max(a, b) ((a) > (b) ? (a) : (b))
 #endif
 
 #define OLED_CS 45    // Pin 10, CS - Chip select
@@ -54,7 +54,8 @@ int startReady = 0;
 long startTime = 0;
 double time_60 = 0, time_100 = 0;
 
-struct sensorsServiceData {
+struct sensorsServiceData
+{
   char charValue;
   double rawValue = 0;
   double altValue = 0;
@@ -65,7 +66,7 @@ struct sensorsServiceData {
   long warningTime = 0;
   bool displayed = false;
   bool warning = false;
-  bool panic = false;  
+  bool panic = false;
   int strWidth = 0;
 };
 
@@ -89,68 +90,77 @@ struct sensor
 };
 
 sensor sensors[] = {
-  // {A15, 2, 2, "IAT", "IAT", 20.3, 0, 0, 0, 0, false, 1000, 0},
-  {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 2.8, 3.5, 1000, false, 0, 10, 2},
-  {A5, 15, 1, "VOLT", "Volt", 12.0, 1, 0, 14.7, 1000, false, 0, 5, 0},
-  {A13, 1, 1, "BOOST", "Boost", 0.32, 2, 0, 1.2, 1000, true, 0, 5},
-  {0, 12, 3, "L100N", "l/100km", 20, 1, 0, 0, 0, false, 0, 0},
-  {40, 4, 3, "CTEMP", "C Temp", 1, 0, 0, 0, 10000, false, 0, 0},
-  {0, 13, 3, "L5N", "l/(5km)", 20, 1, 0, 0, 0, false, 0, 0},
-  // {A6, 3, 3, "ATPRESS", "AT Press", 4.1, 1, 0, 0, false, 0, 0},
-  // {A6, 3, 3, "ATTEMP", "AT Temp", 42.3, 0, 0, 0, false, 0, 0},
-  {1, 6, 2, "SPD", "Spd", 10, 0, 0, 0, 0, false, 0, 0},
-  {0, 7, 1, "INJ", "Inj", 10, 0, 0, 0, 0, false, 0, 0},
-  {0, 8, 3, "DTY", "Duty", 1, 0, 0, 0, 0, false, 0, 0},
-  {0, 9, 3, "DST", "Dist", 1, 2, 0, 0, 0, false, 0, 0},
-  {0, 10, 3, "FUE", "Fuel", 1, 2, 0, 0, 0, false, 0, 0},
-  {0, 11, 3, "L100", "l/100km", 1, 1, 0, 0, 0, false, 0, 0},
-  // {A11, 5, 1, "EGT", "EGT", 343, 0, 0, 0, 0, false, 0, 0},
+    // {A15, 2, 2, "IAT", "IAT", 20.3, 0, 0, 0, 0, false, 1000, 0},
+    {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 2.8, 3.5, 1000, false, 0, 10, 2},
+    {A5, 15, 1, "VOLT", "Volt", 12.0, 1, 0, 14.7, 1000, false, 0, 5, 0},
+    {A13, 1, 1, "BOOST", "Boost", 0.32, 2, 0, 1.2, 1000, true, 0, 5},
+    {0, 12, 3, "L100N", "l/100km", 20, 1, 0, 0, 0, false, 0, 0},
+    {40, 4, 3, "CTEMP", "C Temp", 1, 0, 0, 0, 10000, false, 0, 0},
+    {0, 13, 3, "L5N", "l/(5km)", 20, 1, 0, 0, 0, false, 0, 0},
+    // {A6, 3, 3, "ATPRESS", "AT Press", 4.1, 1, 0, 0, false, 0, 0},
+    // {A6, 3, 3, "ATTEMP", "AT Temp", 42.3, 0, 0, 0, false, 0, 0},
+    {1, 6, 2, "SPD", "Spd", 10, 0, 0, 0, 0, false, 0, 0},
+    {0, 7, 1, "INJ", "Inj", 10, 0, 0, 0, 0, false, 0, 0},
+    {0, 8, 3, "DTY", "Duty", 1, 0, 0, 0, 0, false, 0, 0},
+    {0, 9, 3, "DST", "Dist", 1, 2, 0, 0, 0, false, 0, 0},
+    {0, 10, 3, "FUE", "Fuel", 1, 2, 0, 0, 0, false, 0, 0},
+    {0, 11, 3, "L100", "l/100km", 1, 1, 0, 0, 0, false, 0, 0},
+    // {A11, 5, 1, "EGT", "EGT", 343, 0, 0, 0, 0, false, 0, 0},
 
-  {0, 40, 3, "0_60", "0-60", 1, 2, 0, 0, 0, false, 0, 0},
-  {0, 41, 3, "0_100", "0-100", 1, 2, 0, 0, 0, false, 0, 0},
+    {0, 40, 3, "0_60", "0-60", 1, 2, 0, 0, 0, false, 0, 0},
+    {0, 41, 3, "0_100", "0-100", 1, 2, 0, 0, 0, false, 0, 0},
 };
 
-const int SENSORS_SIZE = sizeof(sensors)/sizeof(sensor);
+const int SENSORS_SIZE = sizeof(sensors) / sizeof(sensor);
 double avgValues[SENSORS_SIZE][10];
 int avgIndex[SENSORS_SIZE];
 // форсунка 6
 // датчик скорости  7
 
-void injStateChange() {
+void injStateChange()
+{
   bool state = digitalRead(2);
 
-  if (state) {
-    injCounter ++;
+  if (state)
+  {
+    injCounter++;
     engineRun = true;
-    if (injStartTime) {
+    if (injStartTime)
+    {
       injDuty = micros() - injStartTime;
       injTotal += injDuty / 1000;
       injNew += injDuty / 1000;
     }
-  } else {
+  }
+  else
+  {
     injStartTime = micros();
   }
 }
 
-void spdRise() {
-  if (startReady >= 5) {
+void spdRise()
+{
+  if (startReady >= 5)
+  {
     startTime = millis();
     time_60 = 0;
     time_100 = 0;
     startReady = 0;
   }
-  spdCounter ++;
+  spdCounter++;
 }
 
-void timerIsr() {
+void timerIsr()
+{
   butt1.tick();
   butt2.tick();
 }
 
-void readFuelFlow() {
-  EEPROM.get(512, injNew); // 4 bytes
+void readFuelFlow()
+{
+  EEPROM.get(512, injNew);      // 4 bytes
   EEPROM.get(516, distanceNew); // 4 bytes
-  EEPROM.get(520, flowPos); // 2 bytes
+  EEPROM.get(520, flowPos);     // 2 bytes
   EEPROM.get(522, fuelFlow);
 }
 
@@ -159,12 +169,14 @@ void setup()
   Serial.begin(9600);
   Serial3.begin(115000);
   Serial3.println("AT+NAMECarMon");
-  Timer1.initialize(10000);           // установка таймера на каждые 10000 микросекунд (== 10 мс)
+  Timer1.initialize(10000); // установка таймера на каждые 10000 микросекунд (== 10 мс)
   Timer1.attachInterrupt(timerIsr);
 
-  if (!bmp280.begin()) {  
+  if (!bmp280.begin())
+  {
     Serial.println("Could not find a valid BMP280 sensor, check wiring!");
-    while (1);
+    while (1)
+      ;
   }
 
   readFuelFlow();
@@ -172,58 +184,70 @@ void setup()
   EEPROM.get(200, injTotal);
 
   int pageIndex = 0, slots = 8;
-  for(unsigned int i = 0; i < SENSORS_SIZE; i++) {
-    switch (sensors[i].type) {
-        case 7:
-          Serial.println("Attach INJ");
-          attachInterrupt(sensors[i].port, injStateChange, CHANGE);
-          break;
-        case 6:
-          Serial.println("Attach SPD");
-          attachInterrupt(sensors[i].port, spdRise, RISING);
-          break;
-        case 1:
-        
-          async.delay(500, [](double del, paramsData params) {
-            int i = params.key;
-          
-            async.repeat(900000, [](double del, paramsData params) { // once in 15 minutes
-              int i = params.key;
+  for (unsigned int i = 0; i < SENSORS_SIZE; i++)
+  {
+    switch (sensors[i].type)
+    {
+    case 7:
+      Serial.println("Attach INJ");
+      attachInterrupt(sensors[i].port, injStateChange, CHANGE);
+      break;
+    case 6:
+      Serial.println("Attach SPD");
+      attachInterrupt(sensors[i].port, spdRise, RISING);
+      break;
+    case 1:
 
-              double atmPress = bmp280.readPressure() / 133.322;
-              double correction = 0;
+      async.delay(500, [](double del, paramsData params)
+                  {
+                    int i = params.key;
 
-              if (!engineRun) {
-                double val = analogRead(sensors[i].port);
-                double volt = voltVal(val);
-                correction = mapVal(volt) - atmPress;
+                    async.repeat(900000, [](double del, paramsData params) { // once in 15 minutes
+                      int i = params.key;
 
-                EEPROM.put(0, correction);
-                Serial.println("MAP CORRECTION ONLINE");
-                Serial.println(correction);
-              } else {
-                EEPROM.get(0, correction);
-                Serial.println("MAP CORRECTION EEPROM");
-                Serial.println(correction);
-              }
-            
-              sensors[i].serviceData.correction = atmPress + correction;
-              Serial.print("MAP atmosphere pressure: ");
-              Serial.println(atmPress);
-            }, {i, 0});
-          }, {i, 0});
-          break;
+                      double atmPress = bmp280.readPressure() / 133.322;
+                      double correction = 0;
+
+                      if (!engineRun)
+                      {
+                        double val = analogRead(sensors[i].port);
+                        double volt = voltVal(val);
+                        correction = mapVal(volt) - atmPress;
+
+                        EEPROM.put(0, correction);
+                        Serial.println("MAP CORRECTION ONLINE");
+                        Serial.println(correction);
+                      }
+                      else
+                      {
+                        EEPROM.get(0, correction);
+                        Serial.println("MAP CORRECTION EEPROM");
+                        Serial.println(correction);
+                      }
+
+                      sensors[i].serviceData.correction = atmPress + correction;
+                      Serial.print("MAP atmosphere pressure: ");
+                      Serial.println(atmPress);
+                    },
+                                 {i, 0});
+                  },
+                  {i, 0});
+      break;
     }
 
-    if (sensors[i].large) {
-      slots --;
-    } else {
-      pageEnd[pageIndex] ++;
+    if (sensors[i].large)
+    {
+      slots--;
     }
-    slots --;
+    else
+    {
+      pageEnd[pageIndex]++;
+    }
+    slots--;
 
-    if (slots < 1 && i < SENSORS_SIZE - 1) {
-      pageIndex ++;
+    if (slots < 1 && i < SENSORS_SIZE - 1)
+    {
+      pageIndex++;
       pageStart[pageIndex] = i + 1;
       pageEnd[pageIndex] = i;
       slots = 8;
@@ -239,33 +263,41 @@ void setup()
 
   displayWidth = u8g.getDisplayWidth();
 
-  async.repeat(1000, [](double del, paramsData p) {
-    if (spdCounter < 3) {
-      startReady += 1;
-    }
-  });
+  async.repeat(1000, [](double del, paramsData p)
+               {
+                 if (spdCounter < 3)
+                 {
+                   startReady += 1;
+                 }
+               });
 
-  async.repeat(5000, [](double del, paramsData p) {
-   if (spdCounter > 0) {
-      EEPROM.put(100, distance);
-    }
-    if (injCounter > 0) {
-      EEPROM.put(200, injTotal);
-    }
-  });
+  async.repeat(5000, [](double del, paramsData p)
+               {
+                 if (spdCounter > 0)
+                 {
+                   EEPROM.put(100, distance);
+                 }
+                 if (injCounter > 0)
+                 {
+                   EEPROM.put(200, injTotal);
+                 }
+               });
 }
 
 void loop()
 {
-  if (butt1.isSingle()) {
-    pageIndex = (pageStart[pageIndex + 1] > 0) ? pageIndex + 1 : 0;  
+  if (butt1.isSingle())
+  {
+    pageIndex = (pageStart[pageIndex + 1] > 0) ? pageIndex + 1 : 0;
   }
 
-  if (butt1.isHolded()) {
+  if (butt1.isHolded())
+  {
     displayMode = displayMode < 2 ? displayMode + 1 : 0;
   }
 
-  if (butt2.isClick()) {
+  if (butt2.isClick())
+  {
     blinker.blink(3, YELLOW);
     experimental = !experimental;
 
@@ -281,404 +313,462 @@ void loop()
     // EEPROM.put(522, fuelFlow);
   }
 
-  if (butt2.isHolded()) { // reset counters
-    if (distanceNew == 0) {
+  if (butt2.isHolded())
+  { // reset counters
+    if (distanceNew == 0)
+    {
       // distance = 0;
       // injTotal = 0;
-    }   
-    
+    }
+
     distanceNew = 0;
     injNew = 0;
     flowPos = 0;
-    
-    EEPROM.put(512, injNew); // 4 bytes
-    EEPROM.put(516, distanceNew); // 4 bytes
-    EEPROM.put(520, flowPos); // 2 bytes
 
-    memset(fuelFlow,0,sizeof(fuelFlow));
+    EEPROM.put(512, injNew);      // 4 bytes
+    EEPROM.put(516, distanceNew); // 4 bytes
+    EEPROM.put(520, flowPos);     // 2 bytes
+
+    memset(fuelFlow, 0, sizeof(fuelFlow));
     EEPROM.put(522, fuelFlow);
   }
 
-  once(1500, [](double interval)  {  
-    temperature = detectTemperature();
-  });
+  once(1500, [](double interval)
+       { temperature = detectTemperature(); });
 
-  once(500, [](double interval)  {  
-    double dst = ((double)spdCounter / 3) * 2.100;
-    distance += dst / 1000;
-    injPerSec = injCounter * (1000 / interval);
-    spdPerMin = dst * (60000 / interval); //1500 = 60km/h
+  once(500, [](double interval)
+       {
+         double dst = ((double)spdCounter / 3) * 2.100;
+         distance += dst / 1000;
+         injPerSec = injCounter * (1000 / interval);
+         spdPerMin = dst * (60000 / interval); //1500 = 60km/h
 
-    double spdPerHour = spdPerMin * 0.06;
+         double spdPerHour = spdPerMin * 0.06;
 
-    if (time_60 == 0 && spdPerHour >= 60) {
-      time_60 = (millis() - startTime) / 1000;
-    }
+         if (time_60 == 0 && spdPerHour >= 60)
+         {
+           time_60 = (millis() - startTime) / 1000;
+         }
 
-    if (time_100 == 0 && spdPerHour >= 100) {
-      time_100 = (millis() - startTime) / 1000;
-    }
+         if (time_100 == 0 && spdPerHour >= 100)
+         {
+           time_100 = (millis() - startTime) / 1000;
+         }
 
-    injCounter = 0;
-    spdCounter = 0;
-   
-    distanceNew += dst / 1000;
-    if (distanceNew >= 5) {
-      flowPos = flowPos < 19 ? flowPos + 1 : 0; 
+         injCounter = 0;
+         spdCounter = 0;
 
-      fuelFlow[flowPos] = injNew;
-      distanceNew = distanceNew - 5;
+         distanceNew += dst / 1000;
+         if (distanceNew >= 5)
+         {
+           flowPos = flowPos < 19 ? flowPos + 1 : 0;
 
-      EEPROM.put(520, flowPos); // 2 bytes
-      EEPROM.put(522 + (flowPos * 4), injNew);
-      injNew = 0;
-    }
+           fuelFlow[flowPos] = injNew;
+           distanceNew = distanceNew - 5;
 
-    if (dst > 0) {
-      EEPROM.put(512, injNew); // 4 bytes
-      EEPROM.put(516, distanceNew); // 4 bytes
-    }
-  });
+           EEPROM.put(520, flowPos); // 2 bytes
+           EEPROM.put(522 + (flowPos * 4), injNew);
+           injNew = 0;
+         }
 
-  once(200, [](double time) {
-    // return;
-    for(unsigned int i = 0; i < SENSORS_SIZE; i++) {
-        float val = analogRead(sensors[i].port);
-        double volt = voltVal(val);
+         if (dst > 0)
+         {
+           EEPROM.put(512, injNew);      // 4 bytes
+           EEPROM.put(516, distanceNew); // 4 bytes
+         }
+       });
 
-        if (sensors[i].averageSize > 0) {
-          
-          if (experimental) {
-            double avgRaw = 0;
-            for (int b = 0; b < sensors[i].averageSize; b ++) {
-              avgRaw += analogRead(sensors[i].port);
-            } 
+  once(200, [](double time)
+       {
+         // return;
+         for (unsigned int i = 0; i < SENSORS_SIZE; i++)
+         {
+           float val = analogRead(sensors[i].port);
+           double volt = voltVal(val);
 
-            volt = voltVal(avgRaw / sensors[i].averageSize);
+           if (sensors[i].averageSize > 0)
+           {
 
-            once(10000, [](double time) {
-              blinker.blink(1, YELLOW, 1);
-            });
-          }
-          
-          avgValues[i][avgIndex[i]] = volt;
+             if (experimental)
+             {
+               double avgRaw = 0;
+               for (int b = 0; b < sensors[i].averageSize; b++)
+               {
+                 avgRaw += analogRead(sensors[i].port);
+               }
 
-          if (avgIndex[i] <= sensors[i].averageSize) {
-            avgIndex[i] ++;
-          } else {
-            avgIndex[i] = 0;
-          }
+               volt = voltVal(avgRaw / sensors[i].averageSize);
 
-          double avgValue = 0;
-          int avgSize = 0;
-          for (int a = 0; a < sensors[i].averageSize; a ++) {
-            if (avgValues[i][a] != 0) {
-              avgValue += avgValues[i][a];
-              avgSize ++;
-            }
-          }
-    
-          volt = avgValue / avgSize;
-        }
+               once(10000, [](double time)
+                    { blinker.blink(1, YELLOW, 1); });
+             }
 
-        switch (sensors[i].type) {
-          case 3:
-            {
-              sensors[i].value = pressVal(volt);
-              sensors[i].serviceData.rawValue = volt;
-            }
-            break;
-          case 4:
-            {
-              sensors[i].value = temperature;
-              sensors[i].serviceData.rawValue = temperature;
-            }
-            break;
-          case 5:
-            {
-              sensors[i].value = getEGT(voltVal(val) * 1000);
-              sensors[i].serviceData.rawValue = volt;
-            }
-            break;
-          case 1: //GM Map
-            {
-              sensors[i].value = (mapVal(volt) - sensors[i].serviceData.correction) / 1000;
-              sensors[i].serviceData.rawValue = volt;
-            }
-            break;
-          case 2: // IAT
-            {
-              float res = resVal(volt, sensors[i].resistanceRef);
-              sensors[i].value = getIat(res);
-              sensors[i].serviceData.rawValue = res;
-            }
-            break;
-          case 12:
-            {
-              double distanceSumm = distanceNew;
-              long injSumm = injNew;
+             avgValues[i][avgIndex[i]] = volt;
 
-              for (int a = 0; a < 20; a ++) {
-                if (fuelFlow[a] > 0) {
-                  injSumm += fuelFlow[a];
-                  distanceSumm += 5;
-                }
-              }
+             if (avgIndex[i] <= sensors[i].averageSize)
+             {
+               avgIndex[i]++;
+             }
+             else
+             {
+               avgIndex[i] = 0;
+             }
 
-              double fuelSumm = fuelRate(injSumm);
-                
-              sensors[i].value = (100 / distanceSumm) * fuelSumm; 
-              sensors[i].serviceData.rawValue = 0;
-            }
-            break;
-          case 13:
-            {
-              double distanceSumm = distanceNew;
-              long injSumm = injNew; 
-              
-              // 5 km
-              if (fuelFlow[flowPos] > 0) { 
-                  injSumm += fuelFlow[flowPos];
-                  distanceSumm += 5;
-              }
+             double avgValue = 0;
+             int avgSize = 0;
+             for (int a = 0; a < sensors[i].averageSize; a++)
+             {
+               if (avgValues[i][a] != 0)
+               {
+                 avgValue += avgValues[i][a];
+                 avgSize++;
+               }
+             }
 
-              double fuelSumm = fuelRate(injSumm);
-                
-              sensors[i].value = (100 / distanceSumm) * fuelSumm; 
-              sensors[i].serviceData.rawValue = 0;
-            }
-            break;
-          case 7:
-            {
-              sensors[i].value = injPerSec * 2 * 60;
-              sensors[i].serviceData.rawValue = injPerSec;
-              sensors[i].serviceData.altValue = injDuty;
-            }
-            break;
-          case 6:
-            {
-              sensors[i].value = spdPerMin * 0.06;
-              sensors[i].serviceData.rawValue = spdPerMin;
-            }
-            break;
-          case 8:
-            {
-              sensors[i].value = injDuty;
-              sensors[i].serviceData.rawValue = injDuty;
-            }
-            break;
-          case 9:
-            {
-              sensors[i].value = distance;
-              sensors[i].serviceData.rawValue = distance;
-            }
-            break;
-          case 10:
-            {
-              totalFuel = fuelRate(injTotal);
-          
-              sensors[i].value = totalFuel;
-              sensors[i].serviceData.rawValue = injTotal;
-            }
-            break;
-          case 11:
-            {
-              totalFuel = fuelRate(injTotal);
-              sensors[i].value = (100 / distance) * totalFuel; 
-              sensors[i].serviceData.rawValue = 0;
-            }
-            break;
-          case 15:
-            {
-              sensors[i].value = volt / 0.2130; // R1 = 56kOm, R2 = 14.7 kOm
-              sensors[i].serviceData.rawValue = volt;
-            }
-            break;
-          case 40:
-            {
-              sensors[i].value = time_60;
-              sensors[i].serviceData.rawValue = 0;
-            }
-            break;
-          case 41:
-            {
-              sensors[i].value = time_100;
-              sensors[i].serviceData.rawValue = 0;
-            }
-            break;
-        }
+             volt = avgValue / avgSize;
+           }
 
-        if (engineRun) {
-            if (sensors[i].serviceData.lowValue == 0 || 
-              sensors[i].serviceData.lowValue > sensors[i].value) {
-              sensors[i].serviceData.lowValue = sensors[i].value;
-            }
-            if (sensors[i].serviceData.highValue == 0 || 
-              sensors[i].serviceData.highValue < sensors[i].value) {
-              sensors[i].serviceData.highValue = sensors[i].value;
-            }
+           switch (sensors[i].type)
+           {
+           case 3:
+           {
+             sensors[i].value = pressVal(volt);
+             sensors[i].serviceData.rawValue = volt;
+           }
+           break;
+           case 4:
+           {
+             sensors[i].value = temperature;
+             sensors[i].serviceData.rawValue = temperature;
+           }
+           break;
+           case 5:
+           {
+             sensors[i].value = getEGT(voltVal(val) * 1000);
+             sensors[i].serviceData.rawValue = volt;
+           }
+           break;
+           case 1: //GM Map
+           {
+             sensors[i].value = (mapVal(volt) - sensors[i].serviceData.correction) / 1000;
+             sensors[i].serviceData.rawValue = volt;
+           }
+           break;
+           case 2: // IAT
+           {
+             float res = resVal(volt, sensors[i].resistanceRef);
+             sensors[i].value = getIat(res);
+             sensors[i].serviceData.rawValue = res;
+           }
+           break;
+           case 12:
+           {
+             double distanceSumm = distanceNew;
+             long injSumm = injNew;
 
-        }
-        
-        bool warning = false;
-        double value = sensors[i].value;
+             for (int a = 0; a < 20; a++)
+             {
+               if (fuelFlow[a] > 0)
+               {
+                 injSumm += fuelFlow[a];
+                 distanceSumm += 5;
+               }
+             }
 
-        if (sensors[i].refTo && sensors[sensors[i].refTo].value > 0) {
-          value = value - sensors[sensors[i].refTo].value;
-        }
+             double fuelSumm = fuelRate(injSumm);
 
-        if (sensors[i].maxValue != 0 && value > sensors[i].maxValue) {
-          warning = true;
-        }
-        if (sensors[i].minValue != 0 && value < sensors[i].minValue) {
-          warning = true;
-        }
+             sensors[i].value = (100 / distanceSumm) * fuelSumm;
+             sensors[i].serviceData.rawValue = 0;
+           }
+           break;
+           case 13:
+           {
+             double distanceSumm = distanceNew;
+             long injSumm = injNew;
 
-        sensors[i].serviceData.warning = warning;
+             // 5 km
+             if (fuelFlow[flowPos] > 0)
+             {
+               injSumm += fuelFlow[flowPos];
+               distanceSumm += 5;
+             }
 
-        if (warning) {
-          sensors[i].serviceData.warningCount = 3;
-          sensors[i].serviceData.warningTime += time;
-          if (engineRun) {
+             double fuelSumm = fuelRate(injSumm);
 
-            if (sensors[i].panicDelay > 0 && sensors[i].serviceData.warningTime > sensors[i].panicDelay) {
-              blinker.blink(3, MAROON);
-            } else {
-              blinker.blink(3, YELLOW);
-            }
-            
-          }
-        } else {
-          sensors[i].serviceData.warningTime = 0;
-        }
+             sensors[i].value = (100 / distanceSumm) * fuelSumm;
+             sensors[i].serviceData.rawValue = 0;
+           }
+           break;
+           case 7:
+           {
+             sensors[i].value = injPerSec * 2 * 60;
+             sensors[i].serviceData.rawValue = injPerSec;
+             sensors[i].serviceData.altValue = injDuty;
+           }
+           break;
+           case 6:
+           {
+             sensors[i].value = spdPerMin * 0.06;
+             sensors[i].serviceData.rawValue = spdPerMin;
+           }
+           break;
+           case 8:
+           {
+             sensors[i].value = injDuty;
+             sensors[i].serviceData.rawValue = injDuty;
+           }
+           break;
+           case 9:
+           {
+             sensors[i].value = distance;
+             sensors[i].serviceData.rawValue = distance;
+           }
+           break;
+           case 10:
+           {
+             totalFuel = fuelRate(injTotal);
 
-        switch (displayMode) {
-          case 1:
-            sensors[i].value = sensors[i].serviceData.highValue;
-            break;
-          case 2:
-            sensors[i].value = sensors[i].serviceData.lowValue;
-            break;
-        }
+             sensors[i].value = totalFuel;
+             sensors[i].serviceData.rawValue = injTotal;
+           }
+           break;
+           case 11:
+           {
+             totalFuel = fuelRate(injTotal);
+             sensors[i].value = (100 / distance) * totalFuel;
+             sensors[i].serviceData.rawValue = 0;
+           }
+           break;
+           case 15:
+           {
+             sensors[i].value = volt / 0.2130; // R1 = 56kOm, R2 = 14.7 kOm
+             sensors[i].serviceData.rawValue = volt;
+           }
+           break;
+           case 40:
+           {
+             sensors[i].value = time_60;
+             sensors[i].serviceData.rawValue = 0;
+           }
+           break;
+           case 41:
+           {
+             sensors[i].value = time_100;
+             sensors[i].serviceData.rawValue = 0;
+           }
+           break;
+           }
 
-        // char tmp_string[256];
-        // dtostrf(sensors[i].value, 2, sensors[i].decimals, tmp_string);  
-        // if (sensors[i].value < 0) {
-        //   if (tmp_string[1] == '0') {
-        //     tmp_string[1] = "";
-        //   };
-        // }
+           if (engineRun)
+           {
+             if (sensors[i].serviceData.lowValue == 0 ||
+                 sensors[i].serviceData.lowValue > sensors[i].value)
+             {
+               sensors[i].serviceData.lowValue = sensors[i].value;
+             }
+             if (sensors[i].serviceData.highValue == 0 ||
+                 sensors[i].serviceData.highValue < sensors[i].value)
+             {
+               sensors[i].serviceData.highValue = sensors[i].value;
+             }
+           }
 
-        // sensors[i].serviceData.charValue = *tmp_string;
-        // Serial3.print();
-        // Serial3.print("/");
-        // Serial3.print(sensors[i].serviceData.rawValue);
-        // Serial3.print("/");
-        // Serial3.print(sensors[i].value);
-        // Serial3.println(String(sensors[i].serialMark) + "/" + tmp_string + "END");
-    }
-  });
+           bool warning = false;
+           bool stopWarning = false;
+           double value = sensors[i].value;
 
-  once(300, [](double interval) {
-    int displayX = 0;
-    int displayY = 0;
+           if (sensors[i].refTo)
+           {
+             value = value - sensors[sensors[i].refTo].value;
+             if (sensors[sensors[i].refTo].value <= 0)
+             {
+               stopWarning = true;
+             }
+           }
 
-    // u8g.clearBuffer();
-    u8g.firstPage();
-    do {
-      int maxWidth = 0;
-      for(unsigned int i = pageStart[pageIndex]; (i <= pageEnd[pageIndex] && i < SENSORS_SIZE); i++) {
-          int yPlus = 32;
-          int xPlus = 50;
-          int titleWidth = 0;
-          int strWidth = 0;
-          char tmp_string[256];
-          dtostrf(sensors[i].value, 2, sensors[i].decimals, tmp_string);  
-          if (sensors[i].value < 0) {
-            if (tmp_string[1] == '0') {
-              tmp_string[1] = "";
-            }
-          }
+           if (!stopWarning)
+           {
+             if (sensors[i].maxValue != 0 && value > sensors[i].maxValue)
+             {
+               warning = true;
+             }
+             if (sensors[i].minValue != 0 && value < sensors[i].minValue)
+             {
+               warning = true;
+             }
+           }
 
-          bool drawTitle = true;
-          if (sensors[i].serviceData.warningCount > 0) {
-            if (sensors[i].serviceData.displayed) {
-              drawTitle = false;
-              sensors[i].serviceData.warningCount --;
-            }
-          }
-          sensors[i].serviceData.displayed = drawTitle;
-           
-          if (sensors[i].large) {
-            u8g.setFont(u8g2_font_osr35_tn); //u8g2_font_fub20_tn
-            u8g.drawStr(displayX, displayY + 20, tmp_string);
-            strWidth = u8g.getStrWidth(tmp_string);
-            u8g.setFont(u8g2_font_ncenR12_tf);
-            titleWidth = u8g.getStrWidth(sensors[i].title);
-            drawTitle && u8g.drawStr(displayX + ((max(sensors[i].serviceData.strWidth, strWidth) - titleWidth) / 2), displayY, sensors[i].title);
-            yPlus = 64;
-            xPlus = 106;
-          } else {
-            if (displayX > 180) {
-              u8g.setFont(u8g2_font_5x8_mf);
-              titleWidth = u8g.getStrWidth(sensors[i].title);
-              drawTitle && u8g.drawStr(displayWidth - titleWidth, displayY, sensors[i].title);
-              u8g.setFont(u8g2_font_helvR18_tn); //u8g2_font_fub20_tn
-              strWidth = u8g.getStrWidth(tmp_string);
-              u8g.drawStr(max(displayX, displayWidth - strWidth), displayY + 8, tmp_string);
-            } else {
-              u8g.setFont(u8g2_font_5x8_mf);
-              titleWidth = u8g.getStrWidth(sensors[i].title);
-              drawTitle && u8g.drawStr(displayX, displayY, sensors[i].title);
-              u8g.setFont(u8g2_font_helvR18_tn); //u8g2_font_fub20_tn
-              strWidth = u8g.getStrWidth(tmp_string);
-              u8g.drawStr(displayX, displayY + 8, tmp_string);
-            }
-          }
-          sensors[i].serviceData.strWidth = max(sensors[i].serviceData.strWidth, strWidth);
-          maxWidth = max(maxWidth, sensors[i].serviceData.strWidth);
-          // maxWidth = sensors[i].serviceData.strWidth;
-          
-          if ((displayY + yPlus) >= 64) {
-            displayX += maxWidth + 7;
-            displayY = 0;
-            maxWidth = 0;
-            if (displayX < displayWidth) {
-              u8g.drawLine(displayX - 3, 5, displayX - 3, 59);
-            }
-          } else {
-            displayY += yPlus;
-          }
-          // sensors[i].serviceData.strWidth -= 1;
-          if (contrast < 255) {
-            contrast += 15;
-            u8g.setContrast(contrast);
-          }
-      }
-      // u8g.drawLine(45, 5, 45, 59);
-      // u8g.drawLine(151, 5, 151, 59);
+           sensors[i].serviceData.warning = warning;
 
-      switch (displayMode) {
-        case 1:
-          u8g.drawLine(181, 5, 174, 13);
-          u8g.drawLine(181, 5, 188, 13);
-          u8g.drawLine(75, 5, 68, 13);
-          u8g.drawLine(75, 5, 82, 13);
-          break;
-        case 2:
-          u8g.drawLine(181, 59, 174, 51);
-          u8g.drawLine(181, 59, 188, 51);
-          u8g.drawLine(75, 59, 68, 51);
-          u8g.drawLine(75, 59, 82, 51);
-          break;
-      }
-      
-    } while ( u8g.nextPage() );
-   
-    // u8g.drawLine(65, 5, 65, 59);
-    // u8g.drawLine(191, 5, 191, 59);
-    // u8g.sendBuffer();
-  });
+           if (warning)
+           {
+             sensors[i].serviceData.warningCount = 3;
+             sensors[i].serviceData.warningTime += time;
+             if (engineRun)
+             {
+
+               if (sensors[i].panicDelay > 0 && sensors[i].serviceData.warningTime > sensors[i].panicDelay)
+               {
+                 blinker.blink(3, MAROON);
+               }
+               else
+               {
+                 blinker.blink(3, YELLOW);
+               }
+             }
+           }
+           else
+           {
+             sensors[i].serviceData.warningTime = 0;
+           }
+
+           switch (displayMode)
+           {
+           case 1:
+             sensors[i].value = sensors[i].serviceData.highValue;
+             break;
+           case 2:
+             sensors[i].value = sensors[i].serviceData.lowValue;
+             break;
+           }
+
+           // char tmp_string[256];
+           // dtostrf(sensors[i].value, 2, sensors[i].decimals, tmp_string);
+           // if (sensors[i].value < 0) {
+           //   if (tmp_string[1] == '0') {
+           //     tmp_string[1] = "";
+           //   };
+           // }
+
+           // sensors[i].serviceData.charValue = *tmp_string;
+           // Serial3.print();
+           // Serial3.print("/");
+           // Serial3.print(sensors[i].serviceData.rawValue);
+           // Serial3.print("/");
+           // Serial3.print(sensors[i].value);
+           // Serial3.println(String(sensors[i].serialMark) + "/" + tmp_string + "END");
+         }
+       });
+
+  once(300, [](double interval)
+       {
+         int displayX = 0;
+         int displayY = 0;
+
+         // u8g.clearBuffer();
+         u8g.firstPage();
+         do
+         {
+           int maxWidth = 0;
+           for (unsigned int i = pageStart[pageIndex]; (i <= pageEnd[pageIndex] && i < SENSORS_SIZE); i++)
+           {
+             int yPlus = 32;
+             int xPlus = 50;
+             int titleWidth = 0;
+             int strWidth = 0;
+             char tmp_string[256];
+             dtostrf(sensors[i].value, 2, sensors[i].decimals, tmp_string);
+             if (sensors[i].value < 0)
+             {
+               if (tmp_string[1] == '0')
+               {
+                 tmp_string[1] = "";
+               }
+             }
+
+             bool drawTitle = true;
+             if (sensors[i].serviceData.warningCount > 0)
+             {
+               if (sensors[i].serviceData.displayed)
+               {
+                 drawTitle = false;
+                 sensors[i].serviceData.warningCount--;
+               }
+             }
+             sensors[i].serviceData.displayed = drawTitle;
+
+             if (sensors[i].large)
+             {
+               u8g.setFont(u8g2_font_osr35_tn); //u8g2_font_fub20_tn
+               u8g.drawStr(displayX, displayY + 20, tmp_string);
+               strWidth = u8g.getStrWidth(tmp_string);
+               u8g.setFont(u8g2_font_ncenR12_tf);
+               titleWidth = u8g.getStrWidth(sensors[i].title);
+               drawTitle &&u8g.drawStr(displayX + ((max(sensors[i].serviceData.strWidth, strWidth) - titleWidth) / 2), displayY, sensors[i].title);
+               yPlus = 64;
+               xPlus = 106;
+             }
+             else
+             {
+               if (displayX > 180)
+               {
+                 u8g.setFont(u8g2_font_5x8_mf);
+                 titleWidth = u8g.getStrWidth(sensors[i].title);
+                 drawTitle &&u8g.drawStr(displayWidth - titleWidth, displayY, sensors[i].title);
+                 u8g.setFont(u8g2_font_helvR18_tn); //u8g2_font_fub20_tn
+                 strWidth = u8g.getStrWidth(tmp_string);
+                 u8g.drawStr(max(displayX, displayWidth - strWidth), displayY + 8, tmp_string);
+               }
+               else
+               {
+                 u8g.setFont(u8g2_font_5x8_mf);
+                 titleWidth = u8g.getStrWidth(sensors[i].title);
+                 drawTitle &&u8g.drawStr(displayX, displayY, sensors[i].title);
+                 u8g.setFont(u8g2_font_helvR18_tn); //u8g2_font_fub20_tn
+                 strWidth = u8g.getStrWidth(tmp_string);
+                 u8g.drawStr(displayX, displayY + 8, tmp_string);
+               }
+             }
+             sensors[i].serviceData.strWidth = max(sensors[i].serviceData.strWidth, strWidth);
+             maxWidth = max(maxWidth, sensors[i].serviceData.strWidth);
+             // maxWidth = sensors[i].serviceData.strWidth;
+
+             if ((displayY + yPlus) >= 64)
+             {
+               displayX += maxWidth + 7;
+               displayY = 0;
+               maxWidth = 0;
+               if (displayX < displayWidth)
+               {
+                 u8g.drawLine(displayX - 3, 5, displayX - 3, 59);
+               }
+             }
+             else
+             {
+               displayY += yPlus;
+             }
+             // sensors[i].serviceData.strWidth -= 1;
+             if (contrast < 255)
+             {
+               contrast += 15;
+               u8g.setContrast(contrast);
+             }
+           }
+           // u8g.drawLine(45, 5, 45, 59);
+           // u8g.drawLine(151, 5, 151, 59);
+
+           switch (displayMode)
+           {
+           case 1:
+             u8g.drawLine(181, 5, 174, 13);
+             u8g.drawLine(181, 5, 188, 13);
+             u8g.drawLine(75, 5, 68, 13);
+             u8g.drawLine(75, 5, 82, 13);
+             break;
+           case 2:
+             u8g.drawLine(181, 59, 174, 51);
+             u8g.drawLine(181, 59, 188, 51);
+             u8g.drawLine(75, 59, 68, 51);
+             u8g.drawLine(75, 59, 82, 51);
+             break;
+           }
+
+         } while (u8g.nextPage());
+
+         // u8g.drawLine(65, 5, 65, 59);
+         // u8g.drawLine(191, 5, 191, 59);
+         // u8g.sendBuffer();
+       });
 
   async.tick();
   blinker.tick();
