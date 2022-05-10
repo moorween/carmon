@@ -92,7 +92,7 @@ struct sensor
 sensor sensors[] = {
     // {A15, 2, 2, "IAT", "IAT", 20.3, 0, 0, 0, 0, false, 1000, 0},
     {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 2.8, 3.5, 1000, false, 0, 10, 2},
-    {A5, 15, 1, "VOLT", "Volt", 12.0, 1, 0, 14.7, 1000, false, 0, 5, 0},
+    {A5, 15, 1, "VOLT", "Volt", 12.0, 1, 0, 14.7, 1000, false, 0, 0, 0},
     {A13, 1, 1, "BOOST", "Boost", 0.32, 2, 0, 1.2, 1000, true, 0, 5},
     {0, 12, 3, "L100N", "l/100km", 20, 1, 0, 0, 0, false, 0, 0},
     {40, 4, 3, "CTEMP", "C Temp", 1, 0, 0, 0, 10000, false, 0, 0},
@@ -172,6 +172,8 @@ void setup()
   Timer1.initialize(10000); // установка таймера на каждые 10000 микросекунд (== 10 мс)
   Timer1.attachInterrupt(timerIsr);
 
+  analogReference(INTERNAL2V56);
+
   if (!bmp280.begin())
   {
     Serial.println("Could not find a valid BMP280 sensor, check wiring!");
@@ -186,6 +188,7 @@ void setup()
   int pageIndex = 0, slots = 8;
   for (unsigned int i = 0; i < SENSORS_SIZE; i++)
   {
+    if (sensors[i].port > 0) pinMode(sensors[i].port, INPUT);
     switch (sensors[i].type)
     {
     case 7:
@@ -336,9 +339,14 @@ void loop()
   once(1500, [](double interval)
        { temperature = detectTemperature(); });
 
+  once(50, [](double interval)
+  {
+
+  });
+
   once(500, [](double interval)
        {
-         double dst = ((double)spdCounter / 3) * 2.100;
+         double dst = ((double)spdCounter / 6) * 2.100;
          distance += dst / 1000;
          injPerSec = injCounter * (1000 / interval);
          spdPerMin = dst * (60000 / interval); //1500 = 60km/h
@@ -452,6 +460,7 @@ void loop()
            {
              sensors[i].value = (mapVal(volt) - sensors[i].serviceData.correction) / 1000;
              sensors[i].serviceData.rawValue = volt;
+             sensors[i].value = 0.14;
            }
            break;
            case 2: // IAT
@@ -541,7 +550,7 @@ void loop()
            break;
            case 15:
            {
-             sensors[i].value = volt / 0.2130; // R1 = 56kOm, R2 = 14.7 kOm
+             sensors[i].value = volt / 0.13; // R1 = 56kOm, R2 = 14.7 kOm
              sensors[i].serviceData.rawValue = volt;
            }
            break;

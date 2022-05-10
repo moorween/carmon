@@ -1,7 +1,7 @@
 #include "utils.h"
 #include "sensorsDefinitions.h"
 
-const float voltRef = 5.0;
+const float voltRef = 2.56;
 
 int prevIatIdx;
 int prevIdx;
