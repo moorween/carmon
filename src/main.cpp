@@ -82,6 +82,7 @@ struct sensor
   double minValue;
   double maxValue;
   int panicDelay;
+  boolean smallFont;
   boolean large;
   int resistanceRef;
   int averageSize; // 10 is MAX
@@ -91,20 +92,20 @@ struct sensor
 
 sensor sensors[] = {
     // {A15, 2, 2, "IAT", "IAT", 20.3, 0, 0, 0, 0, false, 1000, 0},
-    {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 2.8, 3.5, 1000, false, 0, 10, 2},
-    {A5, 15, 1, "VOLT", "Volt", 12.0, 1, 0, 14.7, 1000, false, 0, 0, 0},
-    {A13, 1, 1, "BOOST", "Boost", 0.32, 2, 0, 1.2, 1000, true, 0, 5},
-    {0, 12, 3, "L100N", "l/100km", 20, 1, 0, 0, 0, false, 0, 0},
-    {40, 4, 3, "CTEMP", "C Temp", 1, 0, 0, 0, 10000, false, 0, 0},
-    {0, 13, 3, "L5N", "l/(5km)", 20, 1, 0, 0, 0, false, 0, 0},
+    {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 2.8, 3.5, 1000, false, false, 0, 10, 2},
+    {A5, 15, 1, "VOLT", "Volt", 12.9, 1, 0, 14.7, 1000, true, 0, 0, 0},
+    {A13, 1, 1, "BOOST", "Boost", 1.32, 2, 0, 1.2, 1000, false, true, 0, 5},
+    {0, 12, 3, "L100N", "l/100km", 20, 1, 0, 0, 0, false, false, 0, 0},
+    {40, 4, 3, "CTEMP", "C Temp", 90, 0, 0, 0, 10000, false, false, 0, 0},
+    {0, 13, 3, "L5N", "l/(5km)", 20, 1, 0, 0, 0, false, false, 0, 0},
     // {A6, 3, 3, "ATPRESS", "AT Press", 4.1, 1, 0, 0, false, 0, 0},
     // {A6, 3, 3, "ATTEMP", "AT Temp", 42.3, 0, 0, 0, false, 0, 0},
-    {1, 6, 2, "SPD", "Spd", 10, 0, 0, 0, 0, false, 0, 0},
-    {0, 7, 1, "INJ", "Inj", 10, 0, 0, 0, 0, false, 0, 0},
-    {0, 8, 3, "DTY", "Duty", 1, 0, 0, 0, 0, false, 0, 0},
-    {0, 9, 3, "DST", "Dist", 1, 2, 0, 0, 0, false, 0, 0},
-    {0, 10, 3, "FUE", "Fuel", 1, 2, 0, 0, 0, false, 0, 0},
-    {0, 11, 3, "L100", "l/100km", 1, 1, 0, 0, 0, false, 0, 0},
+    {1, 6, 2, "SPD", "Spd", 100, 0, 0, 0, 0, false, false, 0, 0},
+    {0, 7, 1, "INJ", "Inj", 10, 0, 0, 0, 0, false, false, 0, 0},
+    {0, 8, 3, "DTY", "Duty", 1, 0, 0, 0, 0, false, false, 0, 0},
+    {0, 9, 3, "DST", "Dist", 1, 2, 0, 0, 0, false, false, 0, 0},
+    {0, 10, 3, "FUE", "Fuel", 1, 2, 0, 0, 0, false, false, 0, 0},
+    {0, 11, 3, "L100", "l/100km", 1, 1, 0, 0, 0, false, false, 0, 0},
     // {A11, 5, 1, "EGT", "EGT", 343, 0, 0, 0, 0, false, 0, 0},
 
     {0, 40, 3, "0_60", "0-60", 1, 2, 0, 0, 0, false, 0, 0},
@@ -388,7 +389,7 @@ void loop()
 
   once(200, [](double time)
        {
-         // return;
+        // return;
          for (unsigned int i = 0; i < SENSORS_SIZE; i++)
          {
            float val = analogRead(sensors[i].port);
@@ -460,7 +461,6 @@ void loop()
            {
              sensors[i].value = (mapVal(volt) - sensors[i].serviceData.correction) / 1000;
              sensors[i].serviceData.rawValue = volt;
-             sensors[i].value = 0.14;
            }
            break;
            case 2: // IAT
@@ -683,6 +683,11 @@ void loop()
                {
                  tmp_string[1] = "";
                }
+             } else if (sensors[i].value > 0) {
+                if (tmp_string[0] == '0')
+                {
+                //  tmp_string[0] = "";
+                }
              }
 
              bool drawTitle = true;
@@ -708,25 +713,13 @@ void loop()
                xPlus = 106;
              }
              else
-             {
-               if (displayX > 180)
-               {
-                 u8g.setFont(u8g2_font_5x8_mf);
-                 titleWidth = u8g.getStrWidth(sensors[i].title);
-                 drawTitle &&u8g.drawStr(displayWidth - titleWidth, displayY, sensors[i].title);
-                 u8g.setFont(u8g2_font_helvR18_tn); //u8g2_font_fub20_tn
-                 strWidth = u8g.getStrWidth(tmp_string);
-                 u8g.drawStr(max(displayX, displayWidth - strWidth), displayY + 8, tmp_string);
-               }
-               else
-               {
-                 u8g.setFont(u8g2_font_5x8_mf);
-                 titleWidth = u8g.getStrWidth(sensors[i].title);
-                 drawTitle &&u8g.drawStr(displayX, displayY, sensors[i].title);
-                 u8g.setFont(u8g2_font_helvR18_tn); //u8g2_font_fub20_tn
-                 strWidth = u8g.getStrWidth(tmp_string);
-                 u8g.drawStr(displayX, displayY + 8, tmp_string);
-               }
+             {              
+               u8g.setFont(u8g2_font_5x8_mf);
+               titleWidth = u8g.getStrWidth(sensors[i].title);
+               drawTitle &&u8g.drawStr(displayX, displayY, sensors[i].title);
+               u8g.setFont(sensors[i].smallFont ? u8g2_font_crox4t_tn : u8g2_font_helvR18_tn); //u8g2_font_fub20_tn
+               strWidth = u8g.getStrWidth(tmp_string);
+               u8g.drawStr(displayX > 180 ? max(displayX, displayWidth - strWidth) : displayX, displayY + 8, tmp_string);
              }
              sensors[i].serviceData.strWidth = max(sensors[i].serviceData.strWidth, strWidth);
              maxWidth = max(maxWidth, sensors[i].serviceData.strWidth);
@@ -749,7 +742,7 @@ void loop()
              // sensors[i].serviceData.strWidth -= 1;
              if (contrast < 255)
              {
-               contrast += 15;
+               contrast += 5;
                u8g.setContrast(contrast);
              }
            }
