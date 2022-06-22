@@ -1,14 +1,15 @@
 #include "utils.h"
 #include "sensorsDefinitions.h"
 
-const float voltRef = 2.56;
+const float voltRef = 5;
+const float sensorPowerVolt = 5;
 
 int prevIatIdx;
 int prevIdx;
 float pRef = 0;
 
 float pressVal(float value) {
-  return (((value / voltRef) - 0.1) / 0.8) * 10;
+  return (((value / sensorPowerVolt) - 0.1) / 0.8) * 10; //1.22
 }
 
 float mapVal(float value)

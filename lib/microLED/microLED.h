@@ -35,7 +35,9 @@
 #define microLED_h
 #include "ws2812_send.h"
 
-
+#ifndef max
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#endif
 #ifndef COLOR_DEBTH
 #define COLOR_DEBTH 3	// по умолчанию 24 бита
 #endif

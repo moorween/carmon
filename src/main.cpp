@@ -11,9 +11,9 @@
 #include <stdlib.h>
 #include "TimerOne.h"
 
-#ifndef max
-#define max(a, b) ((a) > (b) ? (a) : (b))
-#endif
+// #ifndef max
+#define maxWidth(a, b) ((a) > (b) ? (a) : (b))
+// #endif
 
 #define OLED_CS 45    // Pin 10, CS - Chip select
 #define OLED_DC 48    // Pin 9 - DC digital signal
@@ -92,7 +92,8 @@ struct sensor
 
 sensor sensors[] = {
     // {A15, 2, 2, "IAT", "IAT", 20.3, 0, 0, 0, 0, false, 1000, 0},
-    {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 2.8, 3.5, 1000, false, false, 0, 10, 2},
+    // {A9, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 2.8, 3.5, 1000, false, false, 0, 10, 2},
+      {A0, 3, 3, "FPRESS", "Fuel P", 4.1, 1, 2.8, 3.5, 1000, false, false, 0, 10, 2},
     {A5, 15, 1, "VOLT", "Volt", 12.9, 1, 0, 14.7, 1000, true, 0, 0, 0},
     {A13, 1, 1, "BOOST", "Boost", 1.32, 2, 0, 1.2, 1000, false, true, 0, 5},
     {0, 12, 3, "L100N", "l/100km", 20, 1, 0, 0, 0, false, false, 0, 0},
@@ -173,7 +174,7 @@ void setup()
   Timer1.initialize(10000); // установка таймера на каждые 10000 микросекунд (== 10 мс)
   Timer1.attachInterrupt(timerIsr);
 
-  analogReference(INTERNAL2V56);
+  // analogReference(INTERNAL2V56);
 
   if (!bmp280.begin())
   {
@@ -443,6 +444,7 @@ void loop()
            {
              sensors[i].value = pressVal(volt);
              sensors[i].serviceData.rawValue = volt;
+            
            }
            break;
            case 4:
@@ -708,7 +710,7 @@ void loop()
                strWidth = u8g.getStrWidth(tmp_string);
                u8g.setFont(u8g2_font_ncenR12_tf);
                titleWidth = u8g.getStrWidth(sensors[i].title);
-               drawTitle &&u8g.drawStr(displayX + ((max(sensors[i].serviceData.strWidth, strWidth) - titleWidth) / 2), displayY, sensors[i].title);
+               drawTitle &&u8g.drawStr(displayX + ((maxWidth(sensors[i].serviceData.strWidth, strWidth) - titleWidth) / 2), displayY, sensors[i].title);
                yPlus = 64;
                xPlus = 106;
              }
@@ -719,10 +721,10 @@ void loop()
                drawTitle &&u8g.drawStr(displayX, displayY, sensors[i].title);
                u8g.setFont(sensors[i].smallFont ? u8g2_font_crox4t_tn : u8g2_font_helvR18_tn); //u8g2_font_fub20_tn
                strWidth = u8g.getStrWidth(tmp_string);
-               u8g.drawStr(displayX > 180 ? max(displayX, displayWidth - strWidth) : displayX, displayY + 8, tmp_string);
+               u8g.drawStr(displayX > 180 ? maxWidth(displayX, displayWidth - strWidth) : displayX, displayY + 8, tmp_string);
              }
-             sensors[i].serviceData.strWidth = max(sensors[i].serviceData.strWidth, strWidth);
-             maxWidth = max(maxWidth, sensors[i].serviceData.strWidth);
+             sensors[i].serviceData.strWidth = maxWidth(sensors[i].serviceData.strWidth, strWidth);
+             maxWidth = maxWidth(maxWidth, sensors[i].serviceData.strWidth);
              // maxWidth = sensors[i].serviceData.strWidth;
 
              if ((displayY + yPlus) >= 64)
@@ -730,7 +732,7 @@ void loop()
                displayX += maxWidth + 7;
                displayY = 0;
                maxWidth = 0;
-               if (displayX < displayWidth)
+               if (displayX < displayWidth && i < pageEnd[pageIndex])
                {
                  u8g.drawLine(displayX - 3, 5, displayX - 3, 59);
                }
